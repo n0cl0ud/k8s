@@ -1423,21 +1423,43 @@ spec:
                 <div class="data-flow">Image Cache: nginx:1.21 not cached</div>
             `;
             
-            // Reset kube-proxy
-            document.getElementById('proxy-state').innerHTML = `
-                <div class="proxy-rules">🌐 Network Rules:</div>
-                <div class="data-flow">iptables chains: default</div>
-                <div class="data-flow">Service endpoints: 0</div>
-                <div class="data-flow">Load balancing: inactive</div>
-            `;
+            // Reset proxy (dynamic based on configuration)
+            const proxyState = document.getElementById('proxy-state');
+            if (clusterConfig.networkProxy === 'cilium') {
+                proxyState.innerHTML = `
+                    <div class="proxy-rules">🔬 eBPF Programs:</div>
+                    <div class="data-flow">Maps: tc_globals, cilium_policy</div>
+                    <div class="data-flow">XDP/TC hooks: active</div>
+                    <div class="data-flow">Network policies: enforced</div>
+                    <div class="data-flow">Observability: enabled</div>
+                `;
+            } else {
+                proxyState.innerHTML = `
+                    <div class="proxy-rules">🌐 Network Rules:</div>
+                    <div class="data-flow">iptables chains: default</div>
+                    <div class="data-flow">Service endpoints: 0</div>
+                    <div class="data-flow">Load balancing: inactive</div>
+                `;
+            }
             
-            // Reset DNS
-            document.getElementById('dns-state').innerHTML = `
-                <div class="dns-records">📋 DNS Records:</div>
-                <div class="data-flow">A Records: default services only</div>
-                <div class="data-flow">Cache: Clean</div>
-                <div class="data-flow">Queries/sec: 0</div>
-            `;
+            // Reset DNS (dynamic based on configuration)
+            const dnsState = document.getElementById('dns-state');
+            if (clusterConfig.dns === 'coredns-custom') {
+                dnsState.innerHTML = `
+                    <div class="dns-records">📋 DNS Records:</div>
+                    <div class="data-flow">A Records: services + external</div>
+                    <div class="data-flow">External DNS: AWS Route53</div>
+                    <div class="data-flow">Cache: Enhanced</div>
+                    <div class="data-flow">Queries/sec: 0</div>
+                `;
+            } else {
+                dnsState.innerHTML = `
+                    <div class="dns-records">📋 DNS Records:</div>
+                    <div class="data-flow">A Records: default services only</div>
+                    <div class="data-flow">Cache: Clean</div>
+                    <div class="data-flow">Queries/sec: 0</div>
+                `;
+            }
         }
         
         function toggleTimeline() {
@@ -1480,10 +1502,15 @@ spec:
             const proxyHeader = proxyComponent.querySelector('.component-header span:nth-child(2)');
             const proxyState = document.getElementById('proxy-state');
             
+            // Reset component state first
+            proxyComponent.classList.remove('processing', 'active');
+            const proxyStatus = document.getElementById('proxy-status');
+            proxyStatus.classList.remove('pending', 'running');
+            
             if (proxyType === 'cilium') {
                 proxyComponent.id = 'cilium';
                 proxyHeader.textContent = 'Cilium';
-                proxyComponent.querySelector('.component-icon').textContent = '🌐';
+                proxyComponent.querySelector('.component-icon').textContent = '🔬';
                 proxyState.innerHTML = `
                     <div class="proxy-rules">🔬 eBPF Programs:</div>
                     <div class="data-flow">Maps: tc_globals, cilium_policy</div>
@@ -1507,6 +1534,11 @@ spec:
             updateTimelineForConfig();
             // Update YAML manifest
             updateYAMLManifest();
+            
+            // If simulation is in progress, reset component states to match new config
+            if (isPlaying || isPaused) {
+                resetComponentStates();
+            }
         }
         
         function updateIngress(ingressType) {
@@ -1516,6 +1548,11 @@ spec:
             
             // Update YAML manifest to include ingress if selected
             updateYAMLManifest();
+            
+            // If simulation is in progress, reset component states to match new config
+            if (isPlaying || isPaused) {
+                resetComponentStates();
+            }
         }
         
         function updateDNS(dnsType) {
@@ -1540,6 +1577,11 @@ spec:
             }
             // Update YAML manifest for DNS changes
             updateYAMLManifest();
+            
+            // If simulation is in progress, reset component states to match new config
+            if (isPlaying || isPaused) {
+                resetComponentStates();
+            }
         }
         
         function updateTimelineForConfig() {
