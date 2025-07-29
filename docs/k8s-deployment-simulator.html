@@ -399,6 +399,107 @@
             100% { transform: scale(1) rotate(360deg); }
         }
         
+        /* Configuration Panel Styles */
+        .config-panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid rgba(76, 175, 80, 0.2);
+        }
+        
+        .config-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(76, 175, 80, 0.3);
+        }
+        
+        .config-header h3 {
+            color: #4CAF50;
+            margin: 0;
+            font-size: 1.3em;
+        }
+        
+        .config-toggle {
+            background: transparent;
+            border: none;
+            color: #4CAF50;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 5px;
+            transition: all 0.2s ease;
+        }
+        
+        .config-toggle:hover {
+            color: #66BB6A;
+            transform: rotate(180deg);
+        }
+        
+        .config-content {
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        
+        .config-content.collapsed {
+            max-height: 0;
+            opacity: 0;
+        }
+        
+        .config-section {
+            margin-bottom: 20px;
+        }
+        
+        .config-section h4 {
+            color: #66BB6A;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+            border-left: 3px solid #4CAF50;
+            padding-left: 10px;
+        }
+        
+        .config-options {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .config-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: rgba(255, 255, 255, 0.02);
+        }
+        
+        .config-option:hover {
+            background: rgba(76, 175, 80, 0.1);
+            transform: translateX(5px);
+        }
+        
+        .config-option input[type="radio"] {
+            margin-top: 2px;
+            accent-color: #4CAF50;
+        }
+        
+        .option-label {
+            font-weight: bold;
+            color: #fff;
+            min-width: 150px;
+        }
+        
+        .option-description {
+            color: #ccc;
+            font-size: 0.9em;
+            flex: 1;
+        }
+        
         /* Responsive Design for Timeline */
         @media (max-width: 1200px) {
             .timeline {
@@ -442,6 +543,32 @@
                 margin: 4px 0;
                 font-size: 0.8em;
             }
+            
+            .config-panel {
+                padding: 15px;
+                margin: 15px 0;
+            }
+            
+            .config-options {
+                gap: 6px;
+            }
+            
+            .config-option {
+                padding: 8px;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+            
+            .option-label {
+                min-width: auto;
+                font-size: 0.9em;
+            }
+            
+            .option-description {
+                font-size: 0.8em;
+                margin-left: 0;
+            }
         }
         
         @media (max-width: 480px) {
@@ -463,6 +590,68 @@
         <p style="text-align: center; opacity: 0.8; margin-bottom: 20px;">
             Step-by-step visualization of all components in action
         </p>
+        
+        <!-- Configuration Panel -->
+        <div class="config-panel">
+            <div class="config-header">
+                <h3>⚙️ Cluster Configuration</h3>
+                <button class="config-toggle" onclick="toggleConfig()">▼</button>
+            </div>
+            <div class="config-content">
+                <div class="config-section">
+                    <h4>🌐 Network Proxy</h4>
+                    <div class="config-options">
+                        <label class="config-option">
+                            <input type="radio" name="network-proxy" value="kube-proxy" checked onclick="updateNetworkProxy('kube-proxy')">
+                            <span class="option-label">kube-proxy (iptables)</span>
+                            <span class="option-description">Standard Kubernetes networking</span>
+                        </label>
+                        <label class="config-option">
+                            <input type="radio" name="network-proxy" value="cilium" onclick="updateNetworkProxy('cilium')">
+                            <span class="option-label">Cilium (eBPF)</span>
+                            <span class="option-description">Advanced eBPF-based networking with observability</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="config-section">
+                    <h4>🚪 Ingress Controller</h4>
+                    <div class="config-options">
+                        <label class="config-option">
+                            <input type="radio" name="ingress" value="none" checked onclick="updateIngress('none')">
+                            <span class="option-label">None</span>
+                            <span class="option-description">Direct service access only</span>
+                        </label>
+                        <label class="config-option">
+                            <input type="radio" name="ingress" value="nginx" onclick="updateIngress('nginx')">
+                            <span class="option-label">NGINX Ingress</span>
+                            <span class="option-description">Popular HTTP/HTTPS ingress controller</span>
+                        </label>
+                        <label class="config-option">
+                            <input type="radio" name="ingress" value="traefik" onclick="updateIngress('traefik')">
+                            <span class="option-label">Traefik</span>
+                            <span class="option-description">Modern ingress with automatic service discovery</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="config-section">
+                    <h4>🔍 DNS Configuration</h4>
+                    <div class="config-options">
+                        <label class="config-option">
+                            <input type="radio" name="dns" value="coredns" checked onclick="updateDNS('coredns')">
+                            <span class="option-label">CoreDNS</span>
+                            <span class="option-description">Standard Kubernetes DNS server</span>
+                        </label>
+                        <label class="config-option">
+                            <input type="radio" name="dns" value="coredns-custom" onclick="updateDNS('coredns-custom')">
+                            <span class="option-label">CoreDNS + External DNS</span>
+                            <span class="option-description">With external DNS management</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
         
         <div class="yaml-manifest">
             <div class="yaml-title">📝 Manifest to deploy:</div>
@@ -1210,6 +1399,195 @@ spec:
                 timelineContent.classList.add('collapsed');
                 toggleButton.textContent = '▶';
             }
+        }
+        
+        function toggleConfig() {
+            const configContent = document.querySelector('.config-content');
+            const toggleButton = document.querySelector('.config-toggle');
+            
+            if (configContent.classList.contains('collapsed')) {
+                configContent.classList.remove('collapsed');
+                toggleButton.textContent = '▼';
+            } else {
+                configContent.classList.add('collapsed');
+                toggleButton.textContent = '▶';
+            }
+        }
+        
+        // Configuration state
+        let clusterConfig = {
+            networkProxy: 'kube-proxy',
+            ingress: 'none',
+            dns: 'coredns'
+        };
+        
+        function updateNetworkProxy(proxyType) {
+            clusterConfig.networkProxy = proxyType;
+            let proxyComponent = document.getElementById('kube-proxy') || document.getElementById('cilium');
+            const proxyHeader = proxyComponent.querySelector('.component-header span:nth-child(2)');
+            const proxyState = document.getElementById('proxy-state');
+            
+            if (proxyType === 'cilium') {
+                proxyComponent.id = 'cilium';
+                proxyHeader.textContent = 'Cilium';
+                proxyComponent.querySelector('.component-icon').textContent = '🌐';
+                proxyState.innerHTML = `
+                    <div class="proxy-rules">🔬 eBPF Programs:</div>
+                    <div class="data-flow">Maps: tc_globals, cilium_policy</div>
+                    <div class="data-flow">XDP/TC hooks: active</div>
+                    <div class="data-flow">Network policies: enforced</div>
+                    <div class="data-flow">Observability: enabled</div>
+                `;
+            } else {
+                proxyComponent.id = 'kube-proxy';
+                proxyHeader.textContent = 'kube-proxy';
+                proxyComponent.querySelector('.component-icon').textContent = '🔀';
+                proxyState.innerHTML = `
+                    <div class="proxy-rules">🌐 Network Rules:</div>
+                    <div class="data-flow">iptables chains: default</div>
+                    <div class="data-flow">Service endpoints: 0</div>
+                    <div class="data-flow">Load balancing: inactive</div>
+                `;
+            }
+            
+            // Update steps timeline for Cilium
+            updateTimelineForConfig();
+        }
+        
+        function updateIngress(ingressType) {
+            clusterConfig.ingress = ingressType;
+            updateTimelineForConfig();
+            
+            // Update YAML manifest to include ingress if selected
+            updateYAMLManifest();
+        }
+        
+        function updateDNS(dnsType) {
+            clusterConfig.dns = dnsType;
+            const dnsState = document.getElementById('dns-state');
+            
+            if (dnsType === 'coredns-custom') {
+                dnsState.innerHTML = `
+                    <div class="dns-records">📋 DNS Records:</div>
+                    <div class="data-flow">A Records: services + external</div>
+                    <div class="data-flow">External DNS: AWS Route53</div>
+                    <div class="data-flow">Cache: Enhanced</div>
+                    <div class="data-flow">Queries/sec: 0</div>
+                `;
+            } else {
+                dnsState.innerHTML = `
+                    <div class="dns-records">📋 DNS Records:</div>
+                    <div class="data-flow">A Records: default services only</div>
+                    <div class="data-flow">Cache: Clean</div>
+                    <div class="data-flow">Queries/sec: 0</div>
+                `;
+            }
+        }
+        
+        function updateTimelineForConfig() {
+            // Add new steps based on configuration
+            const step10 = document.getElementById('step-10');
+            const step11 = document.getElementById('step-11');
+            
+            if (clusterConfig.networkProxy === 'cilium') {
+                step10.innerHTML = `
+                    <strong>10. Cilium Network Setup</strong>
+                    <div class="step-detail">eBPF programs loaded, network policies applied</div>
+                `;
+            } else {
+                step10.innerHTML = `
+                    <strong>10. Service Endpoints</strong>
+                    <div class="step-detail">kube-proxy updates iptables rules</div>
+                `;
+            }
+            
+            if (clusterConfig.ingress !== 'none') {
+                step11.innerHTML = `
+                    <strong>11. Ingress Configuration</strong>
+                    <div class="step-detail">${clusterConfig.ingress} routes configured</div>
+                `;
+            } else {
+                step11.innerHTML = `
+                    <strong>11. DNS Registration</strong>
+                    <div class="step-detail">nginx-service.default.svc.cluster.local</div>
+                `;
+            }
+        }
+        
+        function updateYAMLManifest() {
+            const yamlContent = document.getElementById('yaml-content');
+            let yaml = `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.21
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec:
+  selector:
+    app: nginx
+  ports:
+  - port: 80
+    targetPort: 80
+  type: ClusterIP`;
+
+            if (clusterConfig.ingress === 'nginx') {
+                yaml += `
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: nginx.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx-service
+            port:
+              number: 80`;
+            } else if (clusterConfig.ingress === 'traefik') {
+                yaml += `
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: nginx-ingressroute
+spec:
+  entryPoints:
+  - web
+  routes:
+  - match: Host(\`nginx.example.com\`)
+    kind: Rule
+    services:
+    - name: nginx-service
+      port: 80`;
+            }
+            
+            yamlContent.textContent = yaml;
         }
     </script>
 </body>
