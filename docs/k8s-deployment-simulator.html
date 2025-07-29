@@ -208,24 +208,39 @@
         }
         
         .timeline-toggle {
-            background: rgba(76, 175, 80, 0.2);
-            border: 1px solid #4CAF50;
+            background: transparent;
+            border: none;
             color: #4CAF50;
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
             cursor: pointer;
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
+            padding: 5px;
+            transition: all 0.2s ease;
+            position: relative;
         }
         
         .timeline-toggle:hover {
-            background: rgba(76, 175, 80, 0.4);
-            transform: scale(1.1);
+            color: #66BB6A;
+            transform: rotate(180deg);
+        }
+        
+        .timeline-toggle::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            background: rgba(76, 175, 80, 0.1);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            z-index: -1;
+        }
+        
+        .timeline-toggle:hover::before {
+            opacity: 1;
         }
         
         .timeline-content {
@@ -619,7 +634,7 @@ spec:
     <div class="timeline">
         <div class="timeline-header">
             <h3>📋 Deployment Timeline</h3>
-            <button class="timeline-toggle" onclick="toggleTimeline()">−</button>
+            <button class="timeline-toggle" onclick="toggleTimeline()">▼</button>
         </div>
         <div class="timeline-content">
         <div class="timeline-step" id="step-1">
@@ -1190,10 +1205,10 @@ spec:
             
             if (timelineContent.classList.contains('collapsed')) {
                 timelineContent.classList.remove('collapsed');
-                toggleButton.textContent = '−';
+                toggleButton.textContent = '▼';
             } else {
                 timelineContent.classList.add('collapsed');
-                toggleButton.textContent = '+';
+                toggleButton.textContent = '▶';
             }
         }
     </script>
