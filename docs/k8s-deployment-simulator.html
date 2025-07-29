@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -192,10 +192,50 @@
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
         }
         
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(76, 175, 80, 0.3);
+        }
+        
         .timeline h3 {
             color: #4CAF50;
-            margin-bottom: 15px;
-            text-align: center;
+            margin: 0;
+            text-align: left;
+        }
+        
+        .timeline-toggle {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid #4CAF50;
+            color: #4CAF50;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        
+        .timeline-toggle:hover {
+            background: rgba(76, 175, 80, 0.4);
+            transform: scale(1.1);
+        }
+        
+        .timeline-content {
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        
+        .timeline-content.collapsed {
+            max-height: 0;
+            opacity: 0;
         }
         
         .timeline-step {
@@ -317,17 +357,21 @@
         
         .pod-representation {
             display: inline-block;
-            width: 60px;
-            height: 60px;
+            width: 80px;
+            height: 50px;
             background: linear-gradient(45deg, #4CAF50, #66BB6A);
-            border-radius: 50%;
+            border-radius: 25px;
             margin: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
+            font-size: 0.8em;
+            text-align: center;
             transform: scale(0);
             transition: all 0.5s ease;
+            border: 2px solid #2E7D32;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         }
         
         .pod-representation.visible {
@@ -371,6 +415,10 @@
             
             .timeline h3 {
                 font-size: 1.1em;
+                margin: 0;
+            }
+            
+            .timeline-header {
                 margin-bottom: 10px;
             }
             
@@ -398,11 +446,11 @@
     <div class="container">
         <h1>🚀 Kubernetes Deployment Simulator</h1>
         <p style="text-align: center; opacity: 0.8; margin-bottom: 20px;">
-            Visualisation step-by-step de tous les composants en action
+            Step-by-step visualization of all components in action
         </p>
         
         <div class="yaml-manifest">
-            <div class="yaml-title">📝 Manifest à déployer :</div>
+            <div class="yaml-title">📝 Manifest to deploy:</div>
             <div id="yaml-content">
 apiVersion: apps/v1
 kind: Deployment
@@ -559,9 +607,9 @@ spec:
                 <div class="network-diagram">
                     <h4>🌐 Pod Network</h4>
                     <div id="pod-network">
-                        <div class="pod-representation" id="pod-1">P1</div>
-                        <div class="pod-representation" id="pod-2">P2</div>
-                        <div class="pod-representation" id="pod-3">P3</div>
+                        <div class="pod-representation" id="pod-1">nginx-1</div>
+                        <div class="pod-representation" id="pod-2">nginx-2</div>
+                        <div class="pod-representation" id="pod-3">nginx-3</div>
                     </div>
                 </div>
             </div>
@@ -569,7 +617,11 @@ spec:
     </div>
     
     <div class="timeline">
-        <h3>📋 Deployment Timeline</h3>
+        <div class="timeline-header">
+            <h3>📋 Deployment Timeline</h3>
+            <button class="timeline-toggle" onclick="toggleTimeline()">−</button>
+        </div>
+        <div class="timeline-content">
         <div class="timeline-step" id="step-1">
             <strong>1. kubectl apply</strong>
             <div class="step-detail">Sending YAML to API Server</div>
@@ -617,6 +669,7 @@ spec:
         <div class="timeline-step" id="step-12">
             <strong>12. Health Checks</strong>
             <div class="step-detail">Readiness probes successful</div>
+        </div>
         </div>
     </div>
 
@@ -1129,6 +1182,19 @@ spec:
                 <div class="data-flow">Cache: Clean</div>
                 <div class="data-flow">Queries/sec: 0</div>
             `;
+        }
+        
+        function toggleTimeline() {
+            const timelineContent = document.querySelector('.timeline-content');
+            const toggleButton = document.querySelector('.timeline-toggle');
+            
+            if (timelineContent.classList.contains('collapsed')) {
+                timelineContent.classList.remove('collapsed');
+                toggleButton.textContent = '−';
+            } else {
+                timelineContent.classList.add('collapsed');
+                toggleButton.textContent = '+';
+            }
         }
     </script>
 </body>
