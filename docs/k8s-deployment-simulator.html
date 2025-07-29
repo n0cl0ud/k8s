@@ -1244,25 +1244,45 @@ spec:
         }
         
         function executeStep10() {
-            // Service endpoints and kube-proxy
-            const proxy = document.getElementById('kube-proxy');
+            // Service endpoints and network proxy (dynamic based on configuration)
+            const proxy = document.getElementById('kube-proxy') || document.getElementById('cilium');
             const proxyState = document.getElementById('proxy-state');
             const proxyStatus = document.getElementById('proxy-status');
+            
+            if (!proxy) {
+                console.error('Proxy component not found');
+                return;
+            }
             
             proxy.classList.add('processing');
             proxyStatus.classList.add('pending');
             
-            proxyState.innerHTML = `
-                <div class="proxy-rules">🌐 Network Rules: <span class="highlight-new">Service endpoints updated</span></div>
-                <div class="data-flow">iptables chains: <span class="highlight-new">+3 rules added</span></div>
-                <div class="data-flow">Service endpoints: <span class="highlight-new">3 (nginx-service)</span></div>
-                <div class="data-flow">Load balancing: <span class="highlight-new">🔥 Active</span></div>
-                <div class="data-flow">New rules:</div>
-                <div class="data-flow">→ KUBE-SVC-NGINX -j KUBE-SEP-POD1</div>
-                <div class="data-flow">→ KUBE-SEP-POD1 -j DNAT --to 10.244.1.10:80</div>
-                <div class="data-flow">→ KUBE-SEP-POD3 -j DNAT --to 10.244.1.12:80</div>
-                <div class="data-flow">ClusterIP: <span class="highlight-new">10.96.123.45 → Load balanced</span></div>
-            `;
+            // Different content based on proxy type
+            if (clusterConfig.networkProxy === 'cilium') {
+                proxyState.innerHTML = `
+                    <div class="proxy-rules">🔬 eBPF Programs: <span class="highlight-new">Service map updated</span></div>
+                    <div class="data-flow">Maps: <span class="highlight-new">cilium_lb4_services_v2 +3 entries</span></div>
+                    <div class="data-flow">Service endpoints: <span class="highlight-new">3 (nginx-service)</span></div>
+                    <div class="data-flow">XDP/TC hooks: <span class="highlight-new">🔥 Processing traffic</span></div>
+                    <div class="data-flow">Network policies: <span class="highlight-new">✅ Enforced</span></div>
+                    <div class="data-flow">Load balancer entries:</div>
+                    <div class="data-flow">→ 10.96.123.45:80 → 10.244.1.10:80</div>
+                    <div class="data-flow">→ 10.96.123.45:80 → 10.244.1.12:80</div>
+                    <div class="data-flow">Observability: <span class="highlight-new">📊 Flow logs active</span></div>
+                `;
+            } else {
+                proxyState.innerHTML = `
+                    <div class="proxy-rules">🌐 Network Rules: <span class="highlight-new">Service endpoints updated</span></div>
+                    <div class="data-flow">iptables chains: <span class="highlight-new">+3 rules added</span></div>
+                    <div class="data-flow">Service endpoints: <span class="highlight-new">3 (nginx-service)</span></div>
+                    <div class="data-flow">Load balancing: <span class="highlight-new">🔥 Active</span></div>
+                    <div class="data-flow">New rules:</div>
+                    <div class="data-flow">→ KUBE-SVC-NGINX -j KUBE-SEP-POD1</div>
+                    <div class="data-flow">→ KUBE-SEP-POD1 -j DNAT --to 10.244.1.10:80</div>
+                    <div class="data-flow">→ KUBE-SEP-POD3 -j DNAT --to 10.244.1.12:80</div>
+                    <div class="data-flow">ClusterIP: <span class="highlight-new">10.96.123.45 → Load balanced</span></div>
+                `;
+            }
             proxyState.classList.add('updated');
             
             setTimeout(() => {
@@ -1587,8 +1607,13 @@ spec:
       port: 80`;
             }
             
-            yamlContent.textContent = yaml;
+            yamlContent.innerHTML = yaml.replace(/\n/g, '<br>');
         }
+        
+        // Initialize YAML manifest when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            updateYAMLManifest();
+        });
     </script>
 </body>
 </html>
