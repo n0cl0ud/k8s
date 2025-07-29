@@ -678,34 +678,47 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nginx-deployment
+  name: webapp-deployment
   namespace: default
+  labels:
+    app: webapp
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: nginx
+      app: webapp
   template:
     metadata:
       labels:
-        app: nginx
+        app: webapp
     spec:
       containers:
-      - name: nginx
+      - name: webapp
         image: nginx:1.21
         ports:
         - containerPort: 80
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: nginx-service
+  name: webapp-service
+  labels:
+    app: webapp
 spec:
   selector:
-    app: nginx
+    app: webapp
   ports:
-  - port: 80
+  - name: http
+    port: 80
     targetPort: 80
+    protocol: TCP
   type: ClusterIP
             </div>
         </div>
@@ -830,9 +843,9 @@ spec:
                 <div class="network-diagram">
                     <h4>🌐 Pod Network</h4>
                     <div id="pod-network">
-                        <div class="pod-representation" id="pod-1">nginx-1</div>
-                        <div class="pod-representation" id="pod-2">nginx-2</div>
-                        <div class="pod-representation" id="pod-3">nginx-3</div>
+                        <div class="pod-representation" id="pod-1">webapp-1</div>
+                        <div class="pod-representation" id="pod-2">webapp-2</div>
+                        <div class="pod-representation" id="pod-3">webapp-3</div>
                     </div>
                 </div>
             </div>
@@ -887,7 +900,7 @@ spec:
         </div>
         <div class="timeline-step" id="step-11">
             <strong>11. DNS Registration</strong>
-            <div class="step-detail">nginx-service.default.svc.cluster.local</div>
+            <div class="step-detail">webapp-service.default.svc.cluster.local</div>
         </div>
         <div class="timeline-step" id="step-12">
             <strong>12. Health Checks</strong>
@@ -1554,7 +1567,7 @@ spec:
             } else {
                 step11.innerHTML = `
                     <strong>11. DNS Registration</strong>
-                    <div class="step-detail">nginx-service.default.svc.cluster.local</div>
+                    <div class="step-detail">webapp-service.default.svc.cluster.local</div>
                 `;
             }
         }
@@ -1569,33 +1582,46 @@ spec:
             let yaml = `apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nginx-deployment
+  name: webapp-deployment
+  labels:
+    app: webapp
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: nginx
+      app: webapp
   template:
     metadata:
       labels:
-        app: nginx
+        app: webapp
     spec:
       containers:
-      - name: nginx
+      - name: webapp
         image: nginx:1.21
         ports:
         - containerPort: 80
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: nginx-service
+  name: webapp-service
+  labels:
+    app: webapp
 spec:
   selector:
-    app: nginx
+    app: webapp
   ports:
-  - port: 80
+  - name: http
+    port: 80
     targetPort: 80
+    protocol: TCP
   type: ClusterIP`;
 
             if (clusterConfig.ingress === 'nginx') {
@@ -1604,19 +1630,22 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: nginx-ingress
+  name: webapp-ingress
+  labels:
+    app: webapp
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
 spec:
   rules:
-  - host: nginx.example.com
+  - host: webapp.example.com
     http:
       paths:
       - path: /
         pathType: Prefix
         backend:
           service:
-            name: nginx-service
+            name: webapp-service
             port:
               number: 80`;
             } else if (clusterConfig.ingress === 'traefik') {
@@ -1625,15 +1654,17 @@ spec:
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
-  name: nginx-ingressroute
+  name: webapp-ingressroute
+  labels:
+    app: webapp
 spec:
   entryPoints:
   - web
   routes:
-  - match: Host(\`nginx.example.com\`)
+  - match: Host(\`webapp.example.com\`)
     kind: Rule
     services:
-    - name: nginx-service
+    - name: webapp-service
       port: 80`;
             }
             
