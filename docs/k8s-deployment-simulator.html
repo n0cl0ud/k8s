@@ -1461,6 +1461,7 @@ spec:
         };
         
         function updateNetworkProxy(proxyType) {
+            console.log('Network proxy changed to:', proxyType);
             clusterConfig.networkProxy = proxyType;
             let proxyComponent = document.getElementById('kube-proxy') || document.getElementById('cilium');
             const proxyHeader = proxyComponent.querySelector('.component-header span:nth-child(2)');
@@ -1496,6 +1497,7 @@ spec:
         }
         
         function updateIngress(ingressType) {
+            console.log('Ingress changed to:', ingressType);
             clusterConfig.ingress = ingressType;
             updateTimelineForConfig();
             
@@ -1559,6 +1561,11 @@ spec:
         
         function updateYAMLManifest() {
             const yamlContent = document.getElementById('yaml-content');
+            if (!yamlContent) {
+                console.error('YAML content element not found');
+                return;
+            }
+            console.log('Updating YAML manifest with config:', clusterConfig);
             let yaml = `apiVersion: apps/v1
 kind: Deployment
 metadata:
