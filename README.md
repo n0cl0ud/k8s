@@ -1,45 +1,45 @@
 # Kubernetes Learning Tools
 
-Ce repository contient des outils interactifs pour apprendre et comprendre Kubernetes.
+This repository contains interactive tools for learning and understanding Kubernetes.
 
-## 📚 Pages disponibles
+## 📚 Available Pages
 
-### 🔧 [Composants Kubernetes Détaillés](https://n0cl0ud.github.io/k8s/docs/k8s-components.html)
-Une visualisation interactive des composants Kubernetes avec descriptions détaillées et animations.
+### 🔧 [Kubernetes Components Details](https://n0cl0ud.github.io/k8s/docs/k8s-components.html)
+An interactive visualization of Kubernetes components with detailed descriptions and animations.
 
-### 🚀 [Simulateur de Déploiement K8s](https://n0cl0ud.github.io/k8s/docs/k8s-deployment-simulator.html)
-Un simulateur interactif pour comprendre le processus de déploiement dans Kubernetes.
+### 🚀 [K8s Deployment Simulator](https://n0cl0ud.github.io/k8s/docs/k8s-deployment-simulator.html)
+An interactive simulator to understand the deployment process in Kubernetes.
 
-## 🌐 Accès en ligne
+## 🌐 Online Access
 
-Ces pages sont hébergées via GitHub Pages. Pour les consulter :
+These pages are hosted via GitHub Pages. To access them:
 
-1. **Remplacez `n0cl0ud`** par votre nom d'utilisateur GitHub dans les liens ci-dessus
-2. Ou accédez directement aux fichiers dans le dossier `docs/`
+1. The links above point directly to the live pages
+2. Or access the files directly in the `docs/` folder
 
-## ⚙️ Configuration GitHub Pages
+## ⚙️ GitHub Pages Setup
 
-Pour activer GitHub Pages sur votre repository :
+To enable GitHub Pages on your repository:
 
-1. Allez dans **Settings** de votre repository
-2. Descendez jusqu'à la section **Pages**
-3. Dans **Source**, sélectionnez **Deploy from a branch**
-4. Choisissez **main** comme branche et **/ (root)** comme dossier
-5. Cliquez sur **Save**
+1. Go to your repository **Settings**
+2. Scroll down to the **Pages** section
+3. Under **Source**, select **Deploy from a branch**
+4. Choose **main** as the branch and **/ (root)** as the folder
+5. Click **Save**
 
-Les pages seront alors accessibles à l'adresse : `https://n0cl0ud.github.io/k8s/`
+The pages will then be accessible at: `https://n0cl0ud.github.io/k8s/`
 
-## 📁 Structure du projet
+## 📁 Project Structure
 
 ```
 k8s/
 ├── docs/
-│   ├── k8s-components.html          # Visualisation des composants K8s
-│   └── k8s-deployment-simulator.html # Simulateur de déploiement
+│   ├── k8s-components.html          # K8s components visualization
+│   └── k8s-deployment-simulator.html # Deployment simulator
 ├── LICENSE
 └── README.md
 ```
 
-## 🎯 Utilisation
+## 🎯 Usage
 
-Ces outils sont conçus pour être utilisés directement dans le navigateur. Aucune installation n'est requise - il suffit d'ouvrir les fichiers HTML.
+These tools are designed to be used directly in the browser. No installation required - just open the HTML files.
