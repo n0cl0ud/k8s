@@ -298,6 +298,25 @@
             margin-bottom: 10px;
         }
         
+        #yaml-content {
+            color: #f8f8f2;
+            font-size: 0.9em;
+            line-height: 1.4;
+            overflow-x: auto;
+        }
+        
+        #yaml-content pre {
+            margin: 0;
+            padding: 0;
+            font-family: inherit;
+            white-space: pre;
+            color: inherit;
+            background: transparent;
+            border: none;
+            font-size: inherit;
+            line-height: inherit;
+        }
+        
         .progress-bar {
             width: 100%;
             height: 6px;
@@ -1472,6 +1491,8 @@ spec:
             
             // Update steps timeline for Cilium
             updateTimelineForConfig();
+            // Update YAML manifest
+            updateYAMLManifest();
         }
         
         function updateIngress(ingressType) {
@@ -1502,6 +1523,8 @@ spec:
                     <div class="data-flow">Queries/sec: 0</div>
                 `;
             }
+            // Update YAML manifest for DNS changes
+            updateYAMLManifest();
         }
         
         function updateTimelineForConfig() {
@@ -1607,7 +1630,8 @@ spec:
       port: 80`;
             }
             
-            yamlContent.innerHTML = yaml.replace(/\n/g, '<br>');
+            // Use innerHTML with proper formatting preserving spaces
+            yamlContent.innerHTML = '<pre>' + yaml + '</pre>';
         }
         
         // Initialize YAML manifest when page loads
