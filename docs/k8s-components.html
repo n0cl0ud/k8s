@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Composants Kubernetes Détaillés</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .subtitle {
+            text-align: center;
+            opacity: 0.9;
+            margin-bottom: 40px;
+            font-size: 1.2em;
+        }
+        
+        .components-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        
+        .component-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .component-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+            border-color: #4CAF50;
+        }
+        
+        .component-card.active {
+            border-color: #4CAF50;
+            box-shadow: 0 0 30px rgba(76, 175, 80, 0.4);
+        }
+        
+        .component-icon {
+            font-size: 3em;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        
+        .component-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        .component-role {
+            text-align: center;
+            opacity: 0.8;
+            margin-bottom: 15px;
+            font-style: italic;
+        }
+        
+        .detail-panel {
+            display: none;
+            background: rgba(0, 0, 0, 0.9);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 1000;
+            padding: 40px;
+            overflow-y: auto;
+        }
+        
+        .detail-content {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+            border-radius: 20px;
+            padding: 40px;
+            position: relative;
+        }
+        
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 2em;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+        
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: rotate(90deg);
+        }
+        
+        .detail-sections {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 30px;
+        }
+        
+        .detail-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+        }
+        
+        .detail-section h3 {
+            color: #4CAF50;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 5px;
+        }
+        
+        .api-endpoint {
+            background: #1a1a1a;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #4CAF50;
+        }
+        
+        .process-flow {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .metric:last-child {
+            border-bottom: none;
+        }
+        
+        .tabs {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+            gap: 10px;
+        }
+        
+        .tab {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .tab.active {
+            background: #4CAF50;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+        }
+        
+        .architecture-diagram {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 30px;
+            margin: 30px 0;
+            text-align: center;
+        }
+        
+        .node-diagram {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin: 20px 0;
+        }
+        
+        .node {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            min-width: 150px;
+            border: 2px solid #4CAF50;
+        }
+        
+        .arrow-between {
+            color: #4CAF50;
+            font-size: 2em;
+            margin: 0 20px;
+        }
+        
+        .code-block {
+            background: #1a1a1a;
+            color: #f8f8f2;
+            font-family: 'Courier New', monospace;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+            overflow-x: auto;
+            border-left: 5px solid #4CAF50;
+        }
+        
+        .highlight {
+            background: rgba(76, 175, 80, 0.2);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏗️ Kubernetes Components</h1>
+        <p class="subtitle">Exploration interactive des composants du cluster</p>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('control-plane')">🎯 Control Plane</button>
+            <button class="tab" onclick="showTab('worker-nodes')">👷 Worker Nodes</button>
+            <button class="tab" onclick="showTab('add-ons')">🔌 Add-ons</button>
+        </div>
+        
+        <div id="control-plane" class="tab-content">
+            <div class="components-grid">
+                <div class="component-card" onclick="showDetail('api-server')">
+                    <div class="component-icon">🌐</div>
+                    <div class="component-title">API Server</div>
+                    <div class="component-role">Porte d'entrée du cluster</div>
+                    <p>Point central de toutes les communications. Expose l'API REST Kubernetes et valide/persiste les objets.</p>
+                </div>
+                
+                <div class="component-card" onclick="showDetail('etcd')">
+                    <div class="component-icon">🗄️</div>
+                    <div class="component-title">etcd</div>
+                    <div class="component-role">Base de données du cluster</div>
+                    <p>Stockage clé-valeur distribué et cohérent. Contient tout l'état du cluster Kubernetes.</p>
+                </div>
+                
+                <div class="component-card" onclick="showDetail('scheduler')">
+                    <div class="component-icon">📋</div>
+                    <div class="component-title">Scheduler</div>
+                    <div class="component-role">Organisateur de workloads</div>
+                    <p>Décide sur quel nœud placer chaque pod selon les ressources et contraintes.</p>
+                </div>
+                
+                <div class="component-card" onclick="showDetail('controller-manager')">
+                    <div class="component-icon">🎮</div>
+                    <div class="component-title">Controller Manager</div>
+                    <div class="component-role">Boucles de contrôle</div>
+                    <p>Exécute les contrôleurs qui régulent l'état du cluster (Deployments, Services, etc.).</p>
+                </div>
+            </div>
+        </div>
+        
+        <div id="worker-nodes" class="tab-content" style="display: none;">
+            <div class="components-grid">
+                <div class="component-card" onclick="showDetail('kubelet')">
+                    <div class="component-icon">🤖</div>
+                    <div class="component-title">Kubelet</div>
+                    <div class="component-role">Agent du nœud</div>
+                    <p>Assure que les containers tournent dans les pods assignés à son nœud.</p>
+                </div>
+                
+                <div class="component-card" onclick="showDetail('kube-proxy')">
+                    <div class="component-icon">🔀</div>
+                    <div class="component-title">kube-proxy</div>
+                    <div class="component-role">Proxy réseau</div>
+                    <p>Maintient les règles réseau et permet la communication avec les pods.</p>
+                </div>
+                
+                <div class="component-card" onclick="showDetail('container-runtime')">
+                    <div class="component-icon">📦</div>
+                    <div class="component-title">Container Runtime</div>
+                    <div class="component-role">Moteur de containers</div>
+                    <p>Docker, containerd, CRI-O - exécute et gère les containers.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div id="add-ons" class="tab-content" style="display: none;">
+            <div class="components-grid">
+                <div class="component-card" onclick="showDetail('dns')">
+                    <div class="component-icon">🔍</div>
+                    <div class="component-title">CoreDNS</div>
+                    <div class="component-role">Service de noms</div>
+                    <p>Résolution DNS pour les services et pods dans le cluster.</p>
+                </div>
+                
+                <div class="component-card" onclick="showDetail('dashboard')">
+                    <div class="component-icon">📊</div>
+                    <div class="component-title">Dashboard</div>
+                    <div class="component-role">Interface web</div>
+                    <p>Interface utilisateur web pour gérer et surveiller le cluster.</p>
+                </div>
+                
+                <div class="component-card" onclick="showDetail('ingress')">
+                    <div class="component-icon">🚪</div>
+                    <div class="component-title">Ingress Controller</div>
+                    <div class="component-role">Routeur HTTP</div>
+                    <p>Gère l'accès externe aux services via HTTP/HTTPS.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="architecture-diagram">
+            <h2>🏗️ Architecture Globale</h2>
+            <div class="node-diagram">
+                <div class="node">
+                    <strong>Master Node</strong><br>
+                    API Server<br>
+                    etcd<br>
+                    Scheduler<br>
+                    Controller Manager
+                </div>
+                <div class="arrow-between">→</div>
+                <div class="node">
+                    <strong>Worker Node 1</strong><br>
+                    Kubelet<br>
+                    kube-proxy<br>
+                    Container Runtime<br>
+                    Pods
+                </div>
+                <div class="arrow-between">→</div>
+                <div class="node">
+                    <strong>Worker Node 2</strong><br>
+                    Kubelet<br>
+                    kube-proxy<br>
+                    Container Runtime<br>
+                    Pods
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detail Panels pour chaque composant -->
+    <div id="detail-api-server" class="detail-panel">
+        <div class="detail-content">
+            <button class="close-btn" onclick="closeDetail()">×</button>
+            <h2>🌐 API Server - Le Cerveau Central</h2>
+            
+            <div class="detail-sections">
+                <div class="detail-section">
+                    <h3>🔧 Responsabilités</h3>
+                    <ul>
+                        <li><strong>Validation</strong> des requêtes API</li>
+                        <li><strong>Authentification</strong> et autorisation</li>
+                        <li><strong>Mutation</strong> des objets (webhooks)</li>
+                        <li><strong>Sérialisation</strong> vers etcd</li>
+                        <li><strong>Watching</strong> des changements</li>
+                    </ul>
+                    
+                    <h3>🔌 API Endpoints</h3>
+                    <div class="api-endpoint">GET /api/v1/pods</div>
+                    <div class="api-endpoint">POST /api/v1/namespaces/default/pods</div>
+                    <div class="api-endpoint">GET /apis/apps/v1/deployments</div>
+                </div>
+                
+                <div class="detail-section">
+                    <h3>⚡ Processus Interne</h3>
+                    <div class="process-flow">
+                        <strong>1. Requête HTTP</strong> → Parsing JSON/YAML<br>
+                        <strong>2. Authentification</strong> → Tokens, Certificats<br>
+                        <strong>3. Autorisation</strong> → RBAC, ABAC<br>
+                        <strong>4. Admission Control</strong> → Webhooks<br>
+                        <strong>5. Validation</strong> → Schema OpenAPI<br>
+                        <strong>6. Stockage etcd</strong> → Persistence<br>
+                        <strong>7. Réponse</strong> → JSON vers client
+                    </div>
+                    
+                    <h3>📊 Métriques Typiques</h3>
+                    <div class="metric">
+                        <span>Requêtes/sec</span>
+                        <span class="highlight">~1000-5000</span>
+                    </div>
+                    <div class="metric">
+                        <span>Latence p99</span>
+                        <span class="highlight">&lt; 100ms</span>
+                    </div>
+                    <div class="metric">
+                        <span>Port</span>
+                        <span class="highlight">6443 (HTTPS)</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="code-block">
+# Configuration typique API Server
+kube-apiserver \
+  --advertise-address=10.0.0.1 \
+  --etcd-servers=https://127.0.0.1:2379 \
+  --service-cluster-ip-range=10.96.0.0/12 \
+  --authorization-mode=RBAC \
+  --enable-admission-plugins=NodeRestriction,MutatingAdmissionWebhook
+            </div>
+        </div>
+    </div>
+
+    <!-- Continuer avec les autres composants... -->
+    <div id="detail-etcd" class="detail-panel">
+        <div class="detail-content">
+            <button class="close-btn" onclick="closeDetail()">×</button>
+            <h2>🗄️ etcd - La Mémoire du Cluster</h2>
+            
+            <div class="detail-sections">
+                <div class="detail-section">
+                    <h3>💾 Structure des Données</h3>
+                    <div class="process-flow">
+                        <strong>/registry/pods/default/my-pod</strong><br>
+                        <strong>/registry/services/kube-system/kube-dns</strong><br>
+                        <strong>/registry/deployments/default/nginx</strong><br>
+                        <strong>/registry/secrets/default/db-password</strong>
+                    </div>
+                    
+                    <h3>🔄 Fonctionnalités</h3>
+                    <ul>
+                        <li><strong>MVCC</strong> - Multi-Version Concurrency Control</li>
+                        <li><strong>Watch</strong> - Notifications de changements</li>
+                        <li><strong>Transactions</strong> - Opérations atomiques</li>
+                        <li><strong>Lease</strong> - TTL pour les objets</li>
+                        <li><strong>Compaction</strong> - Nettoyage historique</li>
+                    </ul>
+                </div>
+                
+                <div class="detail-section">
+                    <h3>🎯 Algorithme Raft</h3>
+                    <div class="process-flow">
+                        <strong>Leader Election</strong> → Un seul leader actif<br>
+                        <strong>Log Replication</strong> → Copie sur tous les nœuds<br>
+                        <strong>Consensus</strong> → Majorité doit accepter<br>
+                        <strong>Fault Tolerance</strong> → Survit à N/2-1 pannes
+                    </div>
+                    
+                    <h3>📊 Performance</h3>
+                    <div class="metric">
+                        <span>Écritures/sec</span>
+                        <span class="highlight">~10,000</span>
+                    </div>
+                    <div class="metric">
+                        <span>Lectures/sec</span>
+                        <span class="highlight">~100,000</span>
+                    </div>
+                    <div class="metric">
+                        <span>Port</span>
+                        <span class="highlight">2379 (client), 2380 (peer)</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="code-block">
+# Commandes etcd utiles
+export ETCDCTL_API=3
+
+# Lister toutes les clés
+etcdctl get "" --prefix --keys-only
+
+# Voir un pod spécifique  
+etcdctl get /registry/pods/default/my-pod
+
+# Backup du cluster
+etcdctl snapshot save backup.db
+
+# Restaurer depuis backup
+etcdctl snapshot restore backup.db
+            </div>
+        </div>
+    </div>
+
+    <div id="detail-scheduler" class="detail-panel">
+        <div class="detail-content">
+            <button class="close-btn" onclick="closeDetail()">×</button>
+            <h2>📋 Scheduler - L'Intelligence de Placement</h2>
+            
+            <div class="detail-sections">
+                <div class="detail-section">
+                    <h3>🧠 Algorithme de Scheduling</h3>
+                    <div class="process-flow">
+                        <strong>1. Filtering</strong> → Éliminer nœuds inadéquats<br>
+                        <strong>2. Scoring</strong> → Noter chaque nœud viable<br>
+                        <strong>3. Selection</strong> → Choisir le meilleur score<br>
+                        <strong>4. Binding</strong> → Assigner pod au nœud
+                    </div>
+                    
+                    <h3>🎯 Critères de Filtrage</h3>
+                    <ul>
+                        <li><strong>NodeSelector</strong> - Labels obligatoires</li>
+                        <li><strong>Taints/Tolerations</strong> - Restrictions</li>
+                        <li><strong>Resource Requests</strong> - CPU/RAM suffisants</li>
+                        <li><strong>Affinity Rules</strong> - Colocation préférée</li>
+                        <li><strong>Volume Zones</strong> - Disponibilité stockage</li>
+                    </ul>
+                </div>
+                
+                <div class="detail-section">
+                    <h3>📊 Scoring Functions</h3>
+                    <div class="process-flow">
+                        <strong>LeastRequestedPriority</strong> → Nœuds moins chargés<br>
+                        <strong>BalancedResourceAllocation</strong> → Équilibre CPU/RAM<br>
+                        <strong>NodeAffinityPriority</strong> → Préférences affinity<br>
+                        <strong>InterPodAffinityPriority</strong> → Colocation pods
+                    </div>
+                    
+                    <h3>⚡ Performance</h3>
+                    <div class="metric">
+                        <span>Pods/sec</span>
+                        <span class="highlight">~100-500</span>
+                    </div>
+                    <div class="metric">
+                        <span>Latence scheduling</span>
+                        <span class="highlight">&lt; 100ms</span>
+                    </div>
+                    <div class="metric">
+                        <span>Queue depth</span>
+                        <span class="highlight">Variable</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="code-block">
+# Configuration scheduler custom
+apiVersion: kubescheduler.config.k8s.io/v1beta3
+kind: KubeSchedulerConfiguration
+profiles:
+- schedulerName: my-scheduler
+  plugins:
+    score:
+      enabled:
+      - name: NodeResourcesFit
+      - name: NodeAffinity
+  pluginConfig:
+  - name: NodeResourcesFit
+    args:
+      scoringStrategy:
+        type: LeastAllocated
+            </div>
+        </div>
+    </div>
+
+    <!-- Controller Manager Details -->
+    <div id="detail-controller-manager" class="detail-panel">
+        <div class="detail-content">
+            <button class="close-btn" onclick="closeDetail()">×</button>
+            <h2>🎮 Controller Manager - Les Boucles de Contrôle</h2>
+            
+            <div class="detail-sections">
+                <div class="detail-section">
+                    <h3>🔄 Contrôleurs Principaux</h3>
+                    <div class="process-flow">
+                        <strong>Deployment Controller</strong> → Gère ReplicaSets<br>
+                        <strong>ReplicaSet Controller</strong> → Maintient nb pods<br>
+                        <strong>Node Controller</strong> → Surveille santé nœuds<br>
+                        <strong>Service Controller</strong> → Gère LoadBalancers<br>
+                        <strong>Endpoint Controller</strong> → Sync services/pods<br>
+                        <strong>Namespace Controller</strong> → Nettoyage NS<br>
+                        <strong>PV Controller</strong> → Binding volumes
+                    </div>
+                    
+                    <h3>⚡ Boucle de Contrôle</h3>
+                    <div class="process-flow">
+                        <strong>1. Watch API</strong> → Écoute changements etcd<br>
+                        <strong>2. Compare State</strong> → Actuel vs Désiré<br>
+                        <strong>3. Take Action</strong> → Correction si différence<br>
+                        <strong>4. Update Status</strong> → Rapport état<br>
+                        <strong>5. Requeue</strong> → Répéter dans X sec
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <h3>🎯 Déploiement Pod - Actions</h3>
+                    <div class="process-flow">
+                        <strong>Deployment Created</strong> → Controller détecte<br>
+                        <strong>Create ReplicaSet</strong> → Avec template pod<br>
+                        <strong>ReplicaSet Controller</strong> → Crée pods manquants<br>
+                        <strong>Endpoint Controller</strong> → Maj endpoints service<br>
+                        <strong>Node Controller</strong> → Vérifie capacité nœud
+                    </div>
+                    
+                    <h3>📊 Métriques</h3>
+                    <div class="metric">
+                        <span>Controllers actifs</span>
+                        <span class="highlight">~20-30</span>
+                    </div>
+                    <div class="metric">
+                        <span>Boucle fréquence</span>
+                        <span class="highlight">30s par défaut</span>
+                    </div>
+                    <div class="metric">
+                        <span>Worker threads</span>
+                        <span class="highlight">5 par controller</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="code-block">
+# Exemple: ReplicaSet Controller en action
+kubectl create deployment nginx --image=nginx --replicas=3
+
+# Controller observe:
+# Desired: 3 pods nginx
+# Actual: 0 pods nginx  
+# Action: Créer 3 pods
+
+# Logs controller:
+I0729 controller.go:156] "ReplicaSet nginx-xyz created 3 pods"
+I0729 controller.go:189] "Deployment nginx rollout complete"
+            </div>
+        </div>
+    </div>
+
+    <!-- Kubelet Details -->
+    <div id="detail-kubelet" class="detail-panel">
+        <div class="detail-content">
+            <button class="close-btn" onclick="closeDetail()">×</button>
+            <h2>🤖 Kubelet - L'Agent du Nœud</h2>
+            
+            <div class="detail-sections">
+                <div class="detail-section">
+                    <h3>🔧 Responsabilités</h3>
+                    <ul>
+                        <li><strong>Pod Lifecycle</strong> - Création/Suppression pods</li>
+                        <li><strong>Container Management</strong> - Via CRI</li>
+                        <li><strong>Volume Mounting</strong> - Stockage persistant</li>
+                        <li><strong>Network Setup</strong> - Via CNI</li>
+                        <li><strong>Health Checks</strong> - Liveness/Readiness</li>
+                        <li><strong>Resource Monitoring</strong> - CPU/RAM usage</li>
+                        <li><strong>Node Status</strong> - Heartbeat vers API</li>
+                    </ul>
+                    
+                    <h3>⚡ Déploiement Pod - Étapes</h3>
+                    <div class="process-flow">
+                        <strong>1. Watch API</strong> → Pod assigné à ce nœud<br>
+                        <strong>2. Create Sandbox</strong> → Pod network namespace<br>
+                        <strong>3. Pull Images</strong> → Téléchargement containers<br>
+                        <strong>4. Mount Volumes</strong> → Attachement stockage<br>
+                        <strong>5. Start Containers</strong> → Ordre init → main<br>
+                        <strong>6. Health Checks</strong> → Probes démarrent<br>
+                        <strong>7. Update Status</strong> → Pod Running vers API
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <h3>🔌 Interfaces (CRI/CNI/CSI)</h3>
+                    <div class="process-flow">
+                        <strong>CRI (Container Runtime)</strong><br>
+                        - RuntimeService: Manage pods/containers<br>
+                        - ImageService: Pull/List images<br><br>
+                        
+                        <strong>CNI (Container Network)</strong><br>
+                        - ADD: Setup pod network<br>
+                        - DEL: Cleanup network<br><br>
+                        
+                        <strong>CSI (Container Storage)</strong><br>
+                        - Mount/Unmount volumes<br>
+                        - Expand volumes
+                    </div>
+                    
+                    <h3>📊 Surveillance</h3>
+                    <div class="metric">
+                        <span>Heartbeat API</span>
+                        <span class="highlight">10s interval</span>
+                    </div>
+                    <div class="metric">
+                        <span>Pod sync</span>
+                        <span class="highlight">1s interval</span>
+                    </div>
+                    <div class="metric">
+                        <span>Port</span>
+                        <span class="highlight">10250 (API), 10255 (readonly)</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="code-block">
+# Configuration kubelet
+kubelet \
+  --config=/var/lib/kubelet/config.yaml \
+  --container-runtime=remote \
+  --container-runtime-endpoint=unix:///var/run/containerd/containerd.sock \
+  --pod-cidr=10.244.1.0/24 \
+  --cluster-dns=10.96.0.10
+
+# Logs deployment pod
+I0729 kubelet.go:1956] "SyncLoop received pod" pod="default/nginx-abc123"
+I0729 kuberuntime_manager.go:744] "CreatePodSandbox for pod" pod="nginx-abc123"
+I0729 kuberuntime_manager.go:872] "Pulling image" image="nginx:latest"
+I0729 kuberuntime_manager.go:456] "StartContainer" container="nginx"
+I0729 kubelet.go:2145] "Pod is running" pod="nginx-abc123"
+            </div>
+        </div>
+    </div>
+
+    <!-- kube-proxy Details -->
+    <div id="detail-kube-proxy" class="detail-panel">
+        <div class="detail-content">
+            <button class="close-btn" onclick="closeDetail()">×</button>
+            <h2>🔀 kube-proxy - Le Routeur de Services</h2>
+            
+            <div class="detail-sections">
+                <div class="detail-section">
+                    <h3>🌐 Modes de Proxy</h3>
+                    <div class="process-flow">
+                        <strong>iptables (default)</strong><br>
+                        - Règles iptables pour NAT<br>
+                        - Load balancing round-robin<br>
+                        - Pas de userspace overhead<br><br>
+                        
+                        <strong>IPVS (performance)</strong><br>
+                        - Kernel load balancer<br>
+                        - Algorithms: rr, lc, dh, sh<br>
+                        - Meilleure performance<br><br>
+                        
+                        <strong>userspace (legacy)</strong><br>
+                        - Proxy dans l'espace utilisateur<br>
+                        - Plus lent mais compatible
+                    </div>
+                    
+                    <h3>⚡ Déploiement Pod Impact</h3>
+                    <div class="process-flow">
+                        <strong>Service Created</strong> → kube-proxy watch<br>
+                        <strong>Endpoints Updated</strong> → Nouveau pod IP<br>
+                        <strong>iptables Rules</strong> → NAT vers pod IP<br>
+                        <strong>Load Balancing</strong> → Distribution traffic
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <h3>🔧 Règles iptables Exemple</h3>
+                    <div class="code-block" style="font-size: 0.8em;">
+# Service nginx (ClusterIP: 10.96.123.45)
+-A KUBE-SERVICES -d 10.96.123.45/32 -p tcp -m tcp --dport 80 -j KUBE-SVC-XYZ
+
+# Load balancing vers 3 pods
+-A KUBE-SVC-XYZ -m statistic --mode random --probability 0.33333 -j KUBE-SEP-ABC
+-A KUBE-SVC-XYZ -m statistic --mode random --probability 0.50000 -j KUBE-SEP-DEF  
+-A KUBE-SVC-XYZ -j KUBE-SEP-GHI
+
+# Destination pods
+-A KUBE-SEP-ABC -p tcp -m tcp -j DNAT --to-destination 10.244.1.5:80
+-A KUBE-SEP-DEF -p tcp -m tcp -j DNAT --to-destination 10.244.2.8:80
+-A KUBE-SEP-GHI -p tcp -m tcp -j DNAT --to-destination 10.244.3.2:80
+                    </div>
+                    
+                    <h3>📊 Performance</h3>
+                    <div class="metric">
+                        <span>Sync frequency</span>
+                        <span class="highlight">30s</span>
+                    </div>
+                    <div class="metric">
+                        <span>iptables rules</span>
+                        <span class="highlight">~1000-10000</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Container Runtime Details -->
+    <div id="detail-container-runtime" class="detail-panel">
+        <div class="detail-content">
+            <button class="close-btn" onclick="closeDetail()">×</button>
+            <h2>📦 Container Runtime - Le Moteur d'Exécution</h2>
+            
+            <div class="detail-sections">
+                <div class="detail-section">
+                    <h3>🏃 Runtimes Disponibles</h3>
+                    <div class="process-flow">
+                        <strong>containerd (recommandé)</strong><br>
+                        - CNCF graduated project<br>
+                        - OCI compliant<br>
+                        - Léger et performant<br><br>
+                        
+                        <strong>Docker Engine</strong><br>
+                        - Interface dockershim (deprecated)<br>
+                        - Via cri-dockerd<br><br>
+                        
+                        <strong>CRI-O</strong><br>
+                        - Spécialement pour Kubernetes<br>
+                        - OCI runtime minimal
+                    </div>
+                    
+                    <h3>⚡ Container Lifecycle</h3>
+                    <div class="process-flow">
+                        <strong>1. Image Pull</strong> → Registry download<br>
+                        <strong>2. Create Container</strong> → OCI spec<br>
+                        <strong>3. Start Process</strong> → Entrypoint exec<br>
+                        <strong>4. Monitor Health</strong> → Process status<br>
+                        <strong>5. Collect Logs</strong> → stdout/stderr<br>
+                        <strong>6. Resource Limits</strong> → cgroups enforcement<br>
+                        <strong>7. Stop/Kill</strong> → Graceful/Force termination
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <h3>🔌 CRI gRPC Interface</h3>
+                    <div class="process-flow">
+                        <strong>RuntimeService</strong><br>
+                        - RunPodSandbox()<br>
+                        - CreateContainer()<br>
+                        - StartContainer()<br>
+                        - StopContainer()<br><br>
+                        
+                        <strong>ImageService</strong><br>
+                        - PullImage()<br>
+                        - ListImages()<br>
+                        - RemoveImage()
+                    </div>
+                    
+                    <h3>📊 Isolation</h3>
+                    <div class="metric">
+                        <span>Namespaces</span>
+                        <span class="highlight">PID, NET, MNT, IPC, UTS</span>
+                    </div>
+                    <div class="metric">
+                        <span>Cgroups</span>
+                        <span class="highlight">CPU, Memory, IO</span>
+                    </div>
+                    <div class="metric">
+                        <span>Security</span>
+                        <span class="highlight">seccomp, AppArmor, SELinux</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="code-block">
+# containerd config
+[plugins."io.containerd.grpc.v1.cri"]
+  sandbox_image = "k8s.gcr.io/pause:3.7"
+  [plugins."io.containerd.grpc.v1.cri".containerd]
+    default_runtime_name = "runc"
+    [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
+      runtime_type = "io.containerd.runc.v2"
+
+# Commandes debug
+crictl ps                    # List containers
+crictl pods                  # List pod sandboxes  
+crictl logs CONTAINER_ID     # Container logs
+crictl exec -it CONTAINER_ID sh  # Execute in container
+            </div>
+        </div>
+    </div>
+
+    <!-- DNS Details -->
+    <div id="detail-dns" class="detail-panel">
+        <div class="detail-content">
+            <button class="close-btn" onclick="closeDetail()">×</button>
+            <h2>🔍 CoreDNS - Résolution de Noms</h2>
+            
+            <div class="detail-sections">
+                <div class="detail-section">
+                    <h3>🌐 Zones DNS Kubernetes</h3>
+                    <div class="process-flow">
+                        <strong>Services</strong><br>
+                        my-service.default.svc.cluster.local<br>
+                        → ClusterIP du service<br><br>
+                        
+                        <strong>Pods</strong><br>
+                        10-244-1-5.default.pod.cluster.local<br>
+                        → IP du pod (si enabled)<br><br>
+                        
+                        <strong>Headless Services</strong><br>
+                        nginx-0.nginx-headless.default.svc.cluster.local<br>
+                        → IP direct du pod
+                    </div>
+                    
+                    <h3>⚡ Impact Déploiement Pod</h3>
+                    <div class="process-flow">
+                        <strong>Service Created</strong> → DNS A record ajouté<br>
+                        <strong>Endpoints Updated</strong> → IPs backend mises à jour<br>
+                        <strong>Pod Ready</strong> → Inclus dans load balancing<br>
+                        <strong>Pod Deleted</strong> → Retiré des réponses DNS
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <h3>🔧 Configuration CoreDNS</h3>
+                    <div class="code-block" style="font-size: 0.9em;">
+# Corefile
+.:53 {
+    errors
+    health {
+        lameduck 5s
+    }
+    ready
+    kubernetes cluster.local in-addr.arpa ip6.arpa {
+        pods insecure
+        fallthrough in-addr.arpa ip6.arpa
+        ttl 30
+    }
+    prometheus :9153
+    forward . /etc/resolv.conf
+    cache 30
+    loop
+    reload
+    loadbalance
+}
+                    </div>
+                    
+                    <h3>📊 Métriques</h3>
+                    <div class="metric">
+                        <span>Requêtes/sec</span>
+                        <span class="highlight">~1000-5000</span>
+                    </div>
+                    <div class="metric">
+                        <span>Cache TTL</span>
+                        <span class="highlight">30s</span>
+                    </div>
+                    <div class="metric">
+                        <span>Port</span>
+                        <span class="highlight">53 (UDP/TCP)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Details -->
+    <div id="detail-dashboard" class="detail-panel">
+        <div class="detail-content">
+            <button class="close-btn" onclick="closeDetail()">×</button>
+            <h2>📊 Dashboard - Interface Web</h2>
+            
+            <div class="detail-sections">
+                <div class="detail-section">
+                    <h3>🖥️ Fonctionnalités</h3>
+                    <ul>
+                        <li><strong>Visualisation</strong> - Workloads, Services, Storage</li>
+                        <li><strong>Monitoring</strong> - CPU, RAM, Network usage</li>
+                        <li><strong>Logs</strong> - Container logs en temps réel</li>
+                        <li><strong>Shell</strong> - Exec dans les containers</li>
+                        <li><strong>Édition</strong> - YAML manifests</li>
+                        <li><strong>Scaling</strong> - Replicas up/down</li>
+                    </ul>
+                    
+                    <h3>⚡ Suivi Déploiement</h3>
+                    <div class="process-flow">
+                        <strong>Pod Creation</strong> → Visible dans Workloads<br>
+                        <strong>Status Updates</strong> → Pending → Running<br>
+                        <strong>Resource Usage</strong> → Graphiques temps réel<br>
+                        <strong>Events</strong> → Historique des actions<br>
+                        <strong>Logs Stream</strong> → stdout/stderr live
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <h3>🔒 Sécurité</h3>
+                    <div class="process-flow">
+                        <strong>Authentication</strong><br>
+                        - Token Bearer<br>
+                        - Certificate client<br>
+                        - Basic auth (déconseillé)<br><br>
+                        
+                        <strong>Authorization</strong><br>
+                        - RBAC ClusterRole<br>
+                        - Namespace restrictions<br>
+                        - Read-only mode disponible
+                    </div>
+                    
+                    <h3>📊 Déploiement</h3>
+                    <div class="metric">
+                        <span>Port service</span>
+                        <span class="highlight">443 (HTTPS)</span>
+                    </div>
+                    <div class="metric">
+                        <span>Namespace</span>
+                        <span class="highlight">kubernetes-dashboard</span>
+                    </div>
+                    <div class="metric">
+                        <span>Auto-refresh</span>
+                        <span class="highlight">30s</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="code-block">
+# Installation Dashboard
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml
+
+# Créer utilisateur admin
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: admin-user
+  namespace: kubernetes-dashboard
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: admin-user
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: admin-user
+  namespace: kubernetes-dashboard
+
+# Obtenir token
+kubectl -n kubernetes-dashboard create token admin-user
+            </div>
+        </div>
+    </div>
+
+    <!-- Ingress Controller Details -->
+    <div id="detail-ingress" class="detail-panel">
+        <div class="detail-content">
+            <button class="close-btn" onclick="closeDetail()">×</button>
+            <h2>🚪 Ingress Controller - Routeur HTTP</h2>
+            
+            <div class="detail-sections">
+                <div class="detail-section">
+                    <h3>🌐 Contrôleurs Populaires</h3>
+                    <div class="process-flow">
+                        <strong>NGINX Ingress</strong><br>
+                        - Plus populaire<br>
+                        - Configuration nginx.conf<br>
+                        - Load balancing avancé<br><br>
+                        
+                        <strong>Traefik</strong><br>
+                        - Auto-discovery<br>
+                        - Let's Encrypt intégré<br>
+                        - Dashboard web<br><br>
+                        
+                        <strong>HAProxy</strong><br>
+                        - Performance élevée<br>
+                        - TCP + HTTP support
+                    </div>
+                    
+                    <h3>⚡ Impact Déploiement Pod</h3>
+                    <div class="process-flow">
+                        <strong>Ingress Resource</strong> → Controller détecte<br>
+                        <strong>Backend Update</strong> → Endpoints du service<br>
+                        <strong>Config Reload</strong> → Nouvelle route active<br>
+                        <strong>Health Checks</strong> → Pods readiness<br>
+                        <strong>Load Balance</strong> → Traffic vers pods
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <h3>🔧 Configuration Exemple</h3>
+                    <div class="code-block" style="font-size: 0.9em;">
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: myapp.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx-service
+            port:
+              number: 80
+  tls:
+  - hosts:
+    - myapp.example.com
+    secretName: tls-secret
+                    </div>
+                    
+                    <h3>📊 Fonctionnalités</h3>
+                    <div class="metric">
+                        <span>SSL Termination</span>
+                        <span class="highlight">✅</span>
+                    </div>
+                    <div class="metric">
+                        <span>Path routing</span>
+                        <span class="highlight">✅</span>
+                    </div>
+                    <div class="metric">
+                        <span>Load balancing</span>
+                        <span class="highlight">Round-robin, IP Hash</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showTab(tabName) {
+            // Cacher tous les contenus
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.style.display = 'none';
+            });
+            
+            // Retirer la classe active de tous les onglets
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Afficher le contenu sélectionné
+            document.getElementById(tabName).style.display = 'block';
+            
+            // Activer l'onglet cliqué
+            event.target.classList.add('active');
+        }
+        
+        function showDetail(componentName) {
+            const detailPanel = document.getElementById('detail-' + componentName);
+            if (detailPanel) {
+                detailPanel.style.display = 'block';
+                document.body.style.overflow = 'hidden';
+            }
+        }
+        
+        function closeDetail() {
+            document.querySelectorAll('.detail-panel').forEach(panel => {
+                panel.style.display = 'none';
+            });
+            document.body.style.overflow = 'auto';
+        }
+        
+        // Fermer avec Escape
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeDetail();
+            }
+        });
+        
+        // Fermer en cliquant à l'extérieur
+        document.querySelectorAll('.detail-panel').forEach(panel => {
+            panel.addEventListener('click', function(e) {
+                if (e.target === panel) {
+                    closeDetail();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

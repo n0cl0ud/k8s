@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K8s Deployment Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            overflow-x: auto;
+        }
+        
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #4CAF50, #45a049, #66BB6A);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .controls {
+            text-align: center;
+            margin: 30px 0;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(76, 175, 80, 0.3);
+        }
+        
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .cluster-view {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 30px 0;
+        }
+        
+        .control-plane, .worker-nodes {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 15px;
+            padding: 25px;
+            border: 2px solid rgba(76, 175, 80, 0.3);
+        }
+        
+        .section-title {
+            text-align: center;
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #4CAF50;
+        }
+        
+        .component {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid #333;
+            border-radius: 10px;
+            margin: 15px 0;
+            padding: 20px;
+            transition: all 0.5s ease;
+            position: relative;
+        }
+        
+        .component.active {
+            border-color: #4CAF50;
+            box-shadow: 0 0 25px rgba(76, 175, 80, 0.4);
+            background: rgba(76, 175, 80, 0.1);
+        }
+        
+        .component.processing {
+            border-color: #FF9800;
+            box-shadow: 0 0 25px rgba(255, 152, 0, 0.4);
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.02); opacity: 0.8; }
+        }
+        
+        .component-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        
+        .component-icon {
+            font-size: 1.5em;
+            margin-right: 10px;
+        }
+        
+        .component-state {
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            border-left: 4px solid #333;
+            transition: all 0.3s ease;
+        }
+        
+        .component-state.updated {
+            border-left-color: #4CAF50;
+            animation: glow 1s ease-in-out;
+        }
+        
+        @keyframes glow {
+            0% { background: #1a1a1a; }
+            50% { background: rgba(76, 175, 80, 0.1); }
+            100% { background: #1a1a1a; }
+        }
+        
+        .etcd-data {
+            color: #66BB6A;
+        }
+        
+        .scheduler-decision {
+            color: #FFEB3B;
+        }
+        
+        .controller-action {
+            color: #2196F3;
+        }
+        
+        .kubelet-operation {
+            color: #FF9800;
+        }
+        
+        .proxy-rules {
+            color: #9C27B0;
+        }
+        
+        .dns-records {
+            color: #00BCD4;
+        }
+        
+        .timeline {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 400px;
+            max-height: 90vh;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 15px;
+            padding: 20px;
+            border: 2px solid rgba(76, 175, 80, 0.3);
+            z-index: 1000;
+        }
+        
+        .timeline h3 {
+            color: #4CAF50;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .timeline-step {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 12px;
+            margin: 8px 0;
+            border-left: 4px solid #666;
+            transition: all 0.3s ease;
+            font-size: 0.9em;
+        }
+        
+        .timeline-step.active {
+            border-left-color: #4CAF50;
+            background: rgba(76, 175, 80, 0.1);
+            transform: translateX(5px);
+        }
+        
+        .timeline-step.completed {
+            border-left-color: #2196F3;
+            background: rgba(33, 150, 243, 0.1);
+            opacity: 0.7;
+        }
+        
+        .step-detail {
+            font-size: 0.8em;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+        
+        .yaml-manifest {
+            background: #1a1a1a;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 2px solid #333;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .yaml-title {
+            color: #4CAF50;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #4CAF50, #66BB6A);
+            width: 0%;
+            transition: width 0.5s ease;
+            border-radius: 3px;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            background: #666;
+            transition: all 0.3s ease;
+        }
+        
+        .status-indicator.pending {
+            background: #FF9800;
+            animation: blink 1s infinite;
+        }
+        
+        .status-indicator.running {
+            background: #4CAF50;
+            box-shadow: 0 0 10px rgba(76, 175, 80, 0.6);
+        }
+        
+        .status-indicator.error {
+            background: #F44336;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+        
+        .data-flow {
+            font-size: 0.8em;
+            color: #888;
+            margin: 5px 0;
+            padding: 5px 10px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 4px;
+        }
+        
+        .highlight-new {
+            background: rgba(76, 175, 80, 0.2);
+            padding: 2px 4px;
+            border-radius: 3px;
+            animation: highlight 2s ease-in-out;
+        }
+        
+        @keyframes highlight {
+            0% { background: rgba(76, 175, 80, 0.4); }
+            100% { background: rgba(76, 175, 80, 0.1); }
+        }
+        
+        .network-diagram {
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .pod-representation {
+            display: inline-block;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(45deg, #4CAF50, #66BB6A);
+            border-radius: 50%;
+            margin: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            transform: scale(0);
+            transition: all 0.5s ease;
+        }
+        
+        .pod-representation.visible {
+            transform: scale(1);
+            animation: spin 3s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: scale(1) rotate(0deg); }
+            100% { transform: scale(1) rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Kubernetes Deployment Simulator</h1>
+        <p style="text-align: center; opacity: 0.8; margin-bottom: 20px;">
+            Visualisation step-by-step de tous les composants en action
+        </p>
+        
+        <div class="yaml-manifest">
+            <div class="yaml-title">📝 Manifest à déployer :</div>
+            <div id="yaml-content">
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  namespace: default
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.21
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec:
+  selector:
+    app: nginx
+  ports:
+  - port: 80
+    targetPort: 80
+  type: ClusterIP
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button onclick="startDeployment()" id="playBtn">▶️ Play Deployment</button>
+            <button onclick="pauseDeployment()" id="pauseBtn" disabled>⏸️ Pause</button>
+            <button onclick="resetSimulation()" id="resetBtn">🔄 Reset</button>
+            <button onclick="toggleSpeed()" id="speedBtn">⚡ Speed: 1x</button>
+        </div>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        
+        <div class="cluster-view">
+            <div class="control-plane">
+                <div class="section-title">🏗️ Control Plane</div>
+                
+                <div class="component" id="api-server">
+                    <div class="component-header">
+                        <span class="component-icon">🌐</span>
+                        <span>API Server</span>
+                        <span class="status-indicator" id="api-status"></span>
+                    </div>
+                    <div class="component-state" id="api-state">
+                        <div>🔒 Status: Waiting for requests...</div>
+                        <div class="data-flow">HTTP Requests: 0</div>
+                        <div class="data-flow">Authentication: Ready</div>
+                        <div class="data-flow">Validation: Standby</div>
+                    </div>
+                </div>
+                
+                <div class="component" id="etcd">
+                    <div class="component-header">
+                        <span class="component-icon">🗄️</span>
+                        <span>etcd Database</span>
+                        <span class="status-indicator" id="etcd-status"></span>
+                    </div>
+                    <div class="component-state" id="etcd-state">
+                        <div class="etcd-data">📊 Cluster State:</div>
+                        <div class="data-flow">Keys: 0 deployment-related</div>
+                        <div class="data-flow">Watchers: Active</div>
+                        <div class="data-flow">Revision: 1000</div>
+                    </div>
+                </div>
+                
+                <div class="component" id="scheduler">
+                    <div class="component-header">
+                        <span class="component-icon">📋</span>
+                        <span>Scheduler</span>
+                        <span class="status-indicator" id="scheduler-status"></span>
+                    </div>
+                    <div class="component-state" id="scheduler-state">
+                        <div class="scheduler-decision">🎯 Scheduling Queue:</div>
+                        <div class="data-flow">Pending Pods: 0</div>
+                        <div class="data-flow">Node Evaluation: Idle</div>
+                        <div class="data-flow">Available Nodes: 3</div>
+                    </div>
+                </div>
+                
+                <div class="component" id="controller-manager">
+                    <div class="component-header">
+                        <span class="component-icon">🎮</span>
+                        <span>Controller Manager</span>
+                        <span class="status-indicator" id="controller-status"></span>
+                    </div>
+                    <div class="component-state" id="controller-state">
+                        <div class="controller-action">🔄 Active Controllers:</div>
+                        <div class="data-flow">Deployment Controller: Watching</div>
+                        <div class="data-flow">ReplicaSet Controller: Idle</div>
+                        <div class="data-flow">Endpoint Controller: Ready</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="worker-nodes">
+                <div class="section-title">👷 Worker Nodes</div>
+                
+                <div class="component" id="kubelet">
+                    <div class="component-header">
+                        <span class="component-icon">🤖</span>
+                        <span>Kubelet (node-1)</span>
+                        <span class="status-indicator" id="kubelet-status"></span>
+                    </div>
+                    <div class="component-state" id="kubelet-state">
+                        <div class="kubelet-operation">🛠️ Node Operations:</div>
+                        <div class="data-flow">Assigned Pods: 0</div>
+                        <div class="data-flow">Container Runtime: Ready</div>
+                        <div class="data-flow">Image Cache: nginx:1.21 not cached</div>
+                    </div>
+                </div>
+                
+                <div class="component" id="kube-proxy">
+                    <div class="component-header">
+                        <span class="component-icon">🔀</span>
+                        <span>kube-proxy</span>
+                        <span class="status-indicator" id="proxy-status"></span>
+                    </div>
+                    <div class="component-state" id="proxy-state">
+                        <div class="proxy-rules">🌐 Network Rules:</div>
+                        <div class="data-flow">iptables chains: default</div>
+                        <div class="data-flow">Service endpoints: 0</div>
+                        <div class="data-flow">Load balancing: inactive</div>
+                    </div>
+                </div>
+                
+                <div class="component" id="dns">
+                    <div class="component-header">
+                        <span class="component-icon">🔍</span>
+                        <span>CoreDNS</span>
+                        <span class="status-indicator" id="dns-status"></span>
+                    </div>
+                    <div class="component-state" id="dns-state">
+                        <div class="dns-records">📋 DNS Records:</div>
+                        <div class="data-flow">A Records: default services only</div>
+                        <div class="data-flow">Cache: Clean</div>
+                        <div class="data-flow">Queries/sec: 0</div>
+                    </div>
+                </div>
+                
+                <div class="network-diagram">
+                    <h4>🌐 Pod Network</h4>
+                    <div id="pod-network">
+                        <div class="pod-representation" id="pod-1">P1</div>
+                        <div class="pod-representation" id="pod-2">P2</div>
+                        <div class="pod-representation" id="pod-3">P3</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="timeline">
+        <h3>📋 Deployment Timeline</h3>
+        <div class="timeline-step" id="step-1">
+            <strong>1. kubectl apply</strong>
+            <div class="step-detail">Sending YAML to API Server</div>
+        </div>
+        <div class="timeline-step" id="step-2">
+            <strong>2. API Validation</strong>
+            <div class="step-detail">Authentication + RBAC + Admission</div>
+        </div>
+        <div class="timeline-step" id="step-3">
+            <strong>3. etcd Storage</strong>
+            <div class="step-detail">Deployment & Service objects persisted</div>
+        </div>
+        <div class="timeline-step" id="step-4">
+            <strong>4. Controller Detection</strong>
+            <div class="step-detail">Deployment Controller creates ReplicaSet</div>
+        </div>
+        <div class="timeline-step" id="step-5">
+            <strong>5. ReplicaSet Creation</strong>
+            <div class="step-detail">3 Pod specs generated</div>
+        </div>
+        <div class="timeline-step" id="step-6">
+            <strong>6. Pod Scheduling</strong>
+            <div class="step-detail">Scheduler assigns pods to nodes</div>
+        </div>
+        <div class="timeline-step" id="step-7">
+            <strong>7. Kubelet Action</strong>
+            <div class="step-detail">Container creation on worker nodes</div>
+        </div>
+        <div class="timeline-step" id="step-8">
+            <strong>8. Image Pull</strong>
+            <div class="step-detail">nginx:1.21 downloaded</div>
+        </div>
+        <div class="timeline-step" id="step-9">
+            <strong>9. Container Start</strong>
+            <div class="step-detail">Pods transition to Running</div>
+        </div>
+        <div class="timeline-step" id="step-10">
+            <strong>10. Service Endpoints</strong>
+            <div class="step-detail">kube-proxy updates iptables</div>
+        </div>
+        <div class="timeline-step" id="step-11">
+            <strong>11. DNS Registration</strong>
+            <div class="step-detail">nginx-service.default.svc.cluster.local</div>
+        </div>
+        <div class="timeline-step" id="step-12">
+            <strong>12. Health Checks</strong>
+            <div class="step-detail">Readiness probes successful</div>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 0;
+        let isPlaying = false;
+        let isPaused = false;
+        let deploymentInterval;
+        let speed = 1; // 1x, 2x, 4x
+        
+        const steps = [
+            {
+                name: "kubectl apply",
+                duration: 2000,
+                execute: executeStep1
+            },
+            {
+                name: "API Validation", 
+                duration: 1500,
+                execute: executeStep2
+            },
+            {
+                name: "etcd Storage",
+                duration: 1000,
+                execute: executeStep3
+            },
+            {
+                name: "Controller Detection",
+                duration: 2000,
+                execute: executeStep4
+            },
+            {
+                name: "ReplicaSet Creation",
+                duration: 1500,
+                execute: executeStep5
+            },
+            {
+                name: "Pod Scheduling",
+                duration: 3000,
+                execute: executeStep6
+            },
+            {
+                name: "Kubelet Action",
+                duration: 2000,
+                execute: executeStep7
+            },
+            {
+                name: "Image Pull",
+                duration: 4000,
+                execute: executeStep8
+            },
+            {
+                name: "Container Start", 
+                duration: 2000,
+                execute: executeStep9
+            },
+            {
+                name: "Service Endpoints",
+                duration: 1500,
+                execute: executeStep10
+            },
+            {
+                name: "DNS Registration",
+                duration: 1000,
+                execute: executeStep11
+            },
+            {
+                name: "Health Checks",
+                duration: 2000,
+                execute: executeStep12
+            }
+        ];
+        
+        function startDeployment() {
+            if (isPaused) {
+                isPaused = false;
+                updateButtons();
+                return;
+            }
+            
+            isPlaying = true;
+            isPaused = false;
+            currentStep = 0;
+            updateButtons();
+            executeNextStep();
+        }
+        
+        function pauseDeployment() {
+            isPaused = true;
+            updateButtons();
+        }
+        
+        function resetSimulation() {
+            isPlaying = false;
+            isPaused = false;
+            currentStep = 0;
+            clearTimeout(deploymentInterval);
+            
+            // Reset all components
+            document.querySelectorAll('.component').forEach(comp => {
+                comp.classList.remove('active', 'processing');
+            });
+            
+            document.querySelectorAll('.status-indicator').forEach(indicator => {
+                indicator.className = 'status-indicator';
+            });
+            
+            document.querySelectorAll('.timeline-step').forEach(step => {
+                step.classList.remove('active', 'completed');
+            });
+            
+            document.querySelectorAll('.pod-representation').forEach(pod => {
+                pod.classList.remove('visible');
+            });
+            
+            document.getElementById('progressFill').style.width = '0%';
+            
+            // Reset component states
+            resetComponentStates();
+            updateButtons();
+        }
+        
+        function toggleSpeed() {
+            speed = speed === 1 ? 2 : speed === 2 ? 4 : 1;
+            document.getElementById('speedBtn').textContent = `⚡ Speed: ${speed}x`;
+        }
+        
+        function updateButtons() {
+            document.getElementById('playBtn').disabled = isPlaying && !isPaused;
+            document.getElementById('pauseBtn').disabled = !isPlaying || isPaused;
+            document.getElementById('playBtn').textContent = isPaused ? '▶️ Resume' : '▶️ Play Deployment';
+        }
+        
+        function executeNextStep() {
+            if (!isPlaying || isPaused || currentStep >= steps.length) {
+                if (currentStep >= steps.length) {
+                    isPlaying = false;
+                    updateButtons();
+                }
+                return;
+            }
+            
+            const step = steps[currentStep];
+            const timelineStep = document.getElementById(`step-${currentStep + 1}`);
+            
+            // Mark previous steps as completed
+            for (let i = 0; i < currentStep; i++) {
+                const prevStep = document.getElementById(`step-${i + 1}`);
+                prevStep.classList.remove('active');
+                prevStep.classList.add('completed');
+            }
+            
+            // Activate current step
+            timelineStep.classList.add('active');
+            
+            // Update progress
+            const progress = ((currentStep + 1) / steps.length) * 100;
+            document.getElementById('progressFill').style.width = `${progress}%`;
+            
+            // Execute step function
+            step.execute();
+            
+            // Schedule next step
+            deploymentInterval = setTimeout(() => {
+                currentStep++;
+                executeNextStep();
+            }, step.duration / speed);
+        }
+        
+        function executeStep1() {
+            // kubectl apply - API Server receives request
+            const apiServer = document.getElementById('api-server');
+            const apiState = document.getElementById('api-state');
+            const apiStatus = document.getElementById('api-status');
+            
+            apiServer.classList.add('processing');
+            apiStatus.classList.add('pending');
+            
+            apiState.innerHTML = `
+                <div>🔒 Status: <span class="highlight-new">Processing kubectl request</span></div>
+                <div class="data-flow">HTTP Requests: <span class="highlight-new">1 (POST /apis/apps/v1/deployments)</span></div>
+                <div class="data-flow">Authentication: <span class="highlight-new">✅ Token validated</span></div>
+                <div class="data-flow">Validation: <span class="highlight-new">Parsing YAML manifest</span></div>
+            `;
+            apiState.classList.add('updated');
+        }
+        
+        function executeStep2() {
+            // API Server validation phase
+            const apiState = document.getElementById('api-state');
+            
+            apiState.innerHTML = `
+                <div>🔒 Status: <span class="highlight-new">Validating deployment manifest</span></div>
+                <div class="data-flow">HTTP Requests: 1 (POST /apis/apps/v1/deployments)</div>
+                <div class="data-flow">Authentication: ✅ Token validated</div>
+                <div class="data-flow">Validation: <span class="highlight-new">✅ Schema valid, RBAC passed</span></div>
+                <div class="data-flow">Admission: <span class="highlight-new">MutatingWebhook → ValidatingWebhook</span></div>
+            `;
+            apiState.classList.add('updated');
+        }
+        
+        function executeStep3() {
+            // etcd storage
+            const etcd = document.getElementById('etcd');
+            const etcdState = document.getElementById('etcd-state');
+            const etcdStatus = document.getElementById('etcd-status');
+            const apiStatus = document.getElementById('api-status');
+            
+            etcd.classList.add('processing');
+            etcdStatus.classList.add('pending');
+            apiStatus.classList.remove('pending');
+            apiStatus.classList.add('running');
+            
+            etcdState.innerHTML = `
+                <div class="etcd-data">📊 Cluster State: <span class="highlight-new">Storing objects</span></div>
+                <div class="data-flow">Keys: <span class="highlight-new">+2 (deployment + service)</span></div>
+                <div class="data-flow">Watchers: <span class="highlight-new">Controllers notified</span></div>
+                <div class="data-flow">Revision: <span class="highlight-new">1002</span></div>
+                <div class="data-flow">New Keys:</div>
+                <div class="data-flow">→ /registry/deployments/default/nginx-deployment</div>
+                <div class="data-flow">→ /registry/services/default/nginx-service</div>
+            `;
+            etcdState.classList.add('updated');
+        }
+        
+        function executeStep4() {
+            // Controller Manager detects new deployment
+            const controller = document.getElementById('controller-manager');
+            const controllerState = document.getElementById('controller-state');
+            const controllerStatus = document.getElementById('controller-status');
+            const etcdStatus = document.getElementById('etcd-status');
+            
+            controller.classList.add('processing');
+            controllerStatus.classList.add('pending');
+            etcdStatus.classList.remove('pending');
+            etcdStatus.classList.add('running');
+            
+            controllerState.innerHTML = `
+                <div class="controller-action">🔄 Active Controllers: <span class="highlight-new">Deployment Controller triggered</span></div>
+                <div class="data-flow">Deployment Controller: <span class="highlight-new">🔥 Processing nginx-deployment</span></div>
+                <div class="data-flow">ReplicaSet Controller: <span class="highlight-new">Standing by</span></div>
+                <div class="data-flow">Endpoint Controller: Ready</div>
+                <div class="data-flow">Action: <span class="highlight-new">Creating ReplicaSet with 3 replicas</span></div>
+            `;
+            controllerState.classList.add('updated');
+        }
+        
+        function executeStep5() {
+            // ReplicaSet creation and Pod specs
+            const controllerState = document.getElementById('controller-state');
+            const etcdState = document.getElementById('etcd-state');
+            
+            controllerState.innerHTML = `
+                <div class="controller-action">🔄 Active Controllers: Deployment → ReplicaSet created</div>
+                <div class="data-flow">Deployment Controller: ✅ ReplicaSet nginx-deployment-abc123 created</div>
+                <div class="data-flow">ReplicaSet Controller: <span class="highlight-new">🔥 Creating 3 pods</span></div>
+                <div class="data-flow">Endpoint Controller: Ready</div>
+                <div class="data-flow">Action: <span class="highlight-new">Generating pod-1, pod-2, pod-3 specs</span></div>
+            `;
+            
+            etcdState.innerHTML = `
+                <div class="etcd-data">📊 Cluster State: Adding pod specifications</div>
+                <div class="data-flow">Keys: <span class="highlight-new">+4 (replicaset + 3 pods)</span></div>
+                <div class="data-flow">Watchers: Scheduler notified</div>
+                <div class="data-flow">Revision: <span class="highlight-new">1006</span></div>
+                <div class="data-flow">New Keys:</div>
+                <div class="data-flow">→ /registry/replicasets/default/nginx-deployment-abc123</div>
+                <div class="data-flow">→ /registry/pods/default/nginx-deployment-abc123-pod1</div>
+                <div class="data-flow">→ /registry/pods/default/nginx-deployment-abc123-pod2</div>
+                <div class="data-flow">→ /registry/pods/default/nginx-deployment-abc123-pod3</div>
+            `;
+            etcdState.classList.add('updated');
+            controllerState.classList.add('updated');
+        }
+        
+        function executeStep6() {
+            // Scheduler assigns pods to nodes
+            const scheduler = document.getElementById('scheduler');
+            const schedulerState = document.getElementById('scheduler-state');
+            const schedulerStatus = document.getElementById('scheduler-status');
+            const controllerStatus = document.getElementById('controller-status');
+            
+            scheduler.classList.add('processing');
+            schedulerStatus.classList.add('pending');
+            controllerStatus.classList.remove('pending');
+            controllerStatus.classList.add('running');
+            
+            schedulerState.innerHTML = `
+                <div class="scheduler-decision">🎯 Scheduling Queue: <span class="highlight-new">Processing 3 pods</span></div>
+                <div class="data-flow">Pending Pods: <span class="highlight-new">3 → 0</span></div>
+                <div class="data-flow">Node Evaluation: <span class="highlight-new">🔥 Active</span></div>
+                <div class="data-flow">Available Nodes: 3</div>
+                <div class="data-flow">Decisions:</div>
+                <div class="data-flow">→ pod-1: node-1 (Score: 85) ✅</div>
+                <div class="data-flow">→ pod-2: node-2 (Score: 92) ✅</div>
+                <div class="data-flow">→ pod-3: node-1 (Score: 88) ✅</div>
+                <div class="data-flow">Factors: CPU: 40%, RAM: 30%, Affinity: +15</div>
+            `;
+            schedulerState.classList.add('updated');
+        }
+        
+        function executeStep7() {
+            // Kubelet receives pod assignments
+            const kubelet = document.getElementById('kubelet');
+            const kubeletState = document.getElementById('kubelet-state');
+            const kubeletStatus = document.getElementById('kubelet-status');
+            const schedulerStatus = document.getElementById('scheduler-status');
+            
+            kubelet.classList.add('processing');
+            kubeletStatus.classList.add('pending');
+            schedulerStatus.classList.remove('pending');
+            schedulerStatus.classList.add('running');
+            
+            kubeletState.innerHTML = `
+                <div class="kubelet-operation">🛠️ Node Operations: <span class="highlight-new">2 pods assigned to node-1</span></div>
+                <div class="data-flow">Assigned Pods: <span class="highlight-new">2 (pod-1, pod-3)</span></div>
+                <div class="data-flow">Container Runtime: <span class="highlight-new">🔥 Preparing sandboxes</span></div>
+                <div class="data-flow">Image Cache: nginx:1.21 not cached</div>
+                <div class="data-flow">Actions:</div>
+                <div class="data-flow">→ CreatePodSandbox() called</div>
+                <div class="data-flow">→ Network namespace created</div>
+                <div class="data-flow">→ Volume mounts prepared</div>
+            `;
+            kubeletState.classList.add('updated');
+        }
+        
+        function executeStep8() {
+            // Image pulling phase
+            const kubeletState = document.getElementById('kubelet-state');
+            
+            kubeletState.innerHTML = `
+                <div class="kubelet-operation">🛠️ Node Operations: Image pulling in progress</div>
+                <div class="data-flow">Assigned Pods: 2 (pod-1, pod-3)</div>
+                <div class="data-flow">Container Runtime: <span class="highlight-new">⬇️ Pulling nginx:1.21</span></div>
+                <div class="data-flow">Image Cache: <span class="highlight-new">Downloading layers...</span></div>
+                <div class="data-flow">Progress:</div>
+                <div class="data-flow">→ Layer 1/5: ████████████ 100%</div>
+                <div class="data-flow">→ Layer 2/5: ████████████ 100%</div>
+                <div class="data-flow">→ Config: ████████████ 100%</div>
+                <div class="data-flow">→ <span class="highlight-new">✅ Image nginx:1.21 cached</span></div>
+            `;
+            kubeletState.classList.add('updated');
+        }
+        
+        function executeStep9() {
+            // Container startup
+            const kubeletState = document.getElementById('kubelet-state');
+            const kubeletStatus = document.getElementById('kubelet-status');
+            
+            kubeletStatus.classList.remove('pending');
+            kubeletStatus.classList.add('running');
+            
+            kubeletState.innerHTML = `
+                <div class="kubelet-operation">🛠️ Node Operations: <span class="highlight-new">🚀 Containers starting</span></div>
+                <div class="data-flow">Assigned Pods: 2 (pod-1, pod-3)</div>
+                <div class="data-flow">Container Runtime: <span class="highlight-new">✅ StartContainer() successful</span></div>
+                <div class="data-flow">Image Cache: ✅ nginx:1.21 ready</div>
+                <div class="data-flow">Pod Status:</div>
+                <div class="data-flow">→ pod-1: <span class="highlight-new">🟢 Running</span> (IP: 10.244.1.10)</div>
+                <div class="data-flow">→ pod-3: <span class="highlight-new">🟢 Running</span> (IP: 10.244.1.12)</div>
+                <div class="data-flow">Health checks: <span class="highlight-new">Starting readiness probes</span></div>
+            `;
+            kubeletState.classList.add('updated');
+            
+            // Show pods visually
+            document.getElementById('pod-1').classList.add('visible');
+            document.getElementById('pod-3').classList.add('visible');
+        }
+        
+        function executeStep10() {
+            // Service endpoints and kube-proxy
+            const proxy = document.getElementById('kube-proxy');
+            const proxyState = document.getElementById('proxy-state');
+            const proxyStatus = document.getElementById('proxy-status');
+            
+            proxy.classList.add('processing');
+            proxyStatus.classList.add('pending');
+            
+            proxyState.innerHTML = `
+                <div class="proxy-rules">🌐 Network Rules: <span class="highlight-new">Service endpoints updated</span></div>
+                <div class="data-flow">iptables chains: <span class="highlight-new">+3 rules added</span></div>
+                <div class="data-flow">Service endpoints: <span class="highlight-new">3 (nginx-service)</span></div>
+                <div class="data-flow">Load balancing: <span class="highlight-new">🔥 Active</span></div>
+                <div class="data-flow">New rules:</div>
+                <div class="data-flow">→ KUBE-SVC-NGINX -j KUBE-SEP-POD1</div>
+                <div class="data-flow">→ KUBE-SEP-POD1 -j DNAT --to 10.244.1.10:80</div>
+                <div class="data-flow">→ KUBE-SEP-POD3 -j DNAT --to 10.244.1.12:80</div>
+                <div class="data-flow">ClusterIP: <span class="highlight-new">10.96.123.45 → Load balanced</span></div>
+            `;
+            proxyState.classList.add('updated');
+            
+            setTimeout(() => {
+                proxyStatus.classList.remove('pending');
+                proxyStatus.classList.add('running');
+                document.getElementById('pod-2').classList.add('visible');
+            }, 1000);
+        }
+        
+        function executeStep11() {
+            // DNS registration
+            const dns = document.getElementById('dns');
+            const dnsState = document.getElementById('dns-state');
+            const dnsStatus = document.getElementById('dns-status');
+            
+            dns.classList.add('processing');
+            dnsStatus.classList.add('pending');
+            
+            dnsState.innerHTML = `
+                <div class="dns-records">📋 DNS Records: <span class="highlight-new">Service registered</span></div>
+                <div class="data-flow">A Records: <span class="highlight-new">+1 nginx-service</span></div>
+                <div class="data-flow">Cache: <span class="highlight-new">Updated</span></div>
+                <div class="data-flow">Queries/sec: <span class="highlight-new">5 (health checks)</span></div>
+                <div class="data-flow">New DNS entries:</div>
+                <div class="data-flow">→ nginx-service.default.svc.cluster.local</div>
+                <div class="data-flow">   A 10.96.123.45 (ClusterIP)</div>
+                <div class="data-flow">→ TTL: 30s, Cache: Ready</div>
+            `;
+            dnsState.classList.add('updated');
+            
+            setTimeout(() => {
+                dnsStatus.classList.remove('pending');
+                dnsStatus.classList.add('running');
+            }, 500);
+        }
+        
+        function executeStep12() {
+            // Final health checks and completion
+            const kubeletState = document.getElementById('kubelet-state');
+            
+            kubeletState.innerHTML = `
+                <div class="kubelet-operation">🛠️ Node Operations: <span class="highlight-new">✅ Deployment completed</span></div>
+                <div class="data-flow">Assigned Pods: 2 (pod-1, pod-3)</div>
+                <div class="data-flow">Container Runtime: ✅ All containers healthy</div>
+                <div class="data-flow">Image Cache: ✅ nginx:1.21 ready</div>
+                <div class="data-flow">Pod Status:</div>
+                <div class="data-flow">→ pod-1: <span class="highlight-new">🟢 Ready</span> (Readiness: ✅)</div>
+                <div class="data-flow">→ pod-3: <span class="highlight-new">🟢 Ready</span> (Readiness: ✅)</div>
+                <div class="data-flow">Health checks: <span class="highlight-new">✅ All probes passing</span></div>
+                <div class="data-flow">Service: <span class="highlight-new">✅ Traffic routing active</span></div>
+            `;
+            kubeletState.classList.add('updated');
+            
+            // Mark deployment as complete
+            setTimeout(() => {
+                document.querySelectorAll('.status-indicator.pending').forEach(indicator => {
+                    indicator.classList.remove('pending');
+                    indicator.classList.add('running');
+                });
+                
+                document.querySelectorAll('.component.processing').forEach(comp => {
+                    comp.classList.remove('processing');
+                    comp.classList.add('active');
+                });
+            }, 1000);
+        }
+        
+        function resetComponentStates() {
+            // Reset API Server
+            document.getElementById('api-state').innerHTML = `
+                <div>🔒 Status: Waiting for requests...</div>
+                <div class="data-flow">HTTP Requests: 0</div>
+                <div class="data-flow">Authentication: Ready</div>
+                <div class="data-flow">Validation: Standby</div>
+            `;
+            
+            // Reset etcd
+            document.getElementById('etcd-state').innerHTML = `
+                <div class="etcd-data">📊 Cluster State:</div>
+                <div class="data-flow">Keys: 0 deployment-related</div>
+                <div class="data-flow">Watchers: Active</div>
+                <div class="data-flow">Revision: 1000</div>
+            `;
+            
+            // Reset Scheduler
+            document.getElementById('scheduler-state').innerHTML = `
+                <div class="scheduler-decision">🎯 Scheduling Queue:</div>
+                <div class="data-flow">Pending Pods: 0</div>
+                <div class="data-flow">Node Evaluation: Idle</div>
+                <div class="data-flow">Available Nodes: 3</div>
+            `;
+            
+            // Reset Controller Manager
+            document.getElementById('controller-state').innerHTML = `
+                <div class="controller-action">🔄 Active Controllers:</div>
+                <div class="data-flow">Deployment Controller: Watching</div>
+                <div class="data-flow">ReplicaSet Controller: Idle</div>
+                <div class="data-flow">Endpoint Controller: Ready</div>
+            `;
+            
+            // Reset Kubelet
+            document.getElementById('kubelet-state').innerHTML = `
+                <div class="kubelet-operation">🛠️ Node Operations:</div>
+                <div class="data-flow">Assigned Pods: 0</div>
+                <div class="data-flow">Container Runtime: Ready</div>
+                <div class="data-flow">Image Cache: nginx:1.21 not cached</div>
+            `;
+            
+            // Reset kube-proxy
+            document.getElementById('proxy-state').innerHTML = `
+                <div class="proxy-rules">🌐 Network Rules:</div>
+                <div class="data-flow">iptables chains: default</div>
+                <div class="data-flow">Service endpoints: 0</div>
+                <div class="data-flow">Load balancing: inactive</div>
+            `;
+            
+            // Reset DNS
+            document.getElementById('dns-state').innerHTML = `
+                <div class="dns-records">📋 DNS Records:</div>
+                <div class="data-flow">A Records: default services only</div>
+                <div class="data-flow">Cache: Clean</div>
+                <div class="data-flow">Queries/sec: 0</div>
+            `;
+        }
+    </script>
+</body>
+</html>
