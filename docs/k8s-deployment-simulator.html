@@ -1470,6 +1470,32 @@
                         </label>
                     </div>
                 </div>
+                
+                <div class="config-section">
+                    <h4>💾 Storage & Volumes</h4>
+                    <div class="config-options">
+                        <label class="config-option">
+                            <input type="radio" name="storage-type" value="none" checked onclick="updateStorageType('none')">
+                            <span class="option-label">No Volumes</span>
+                            <span class="option-description">Simple deployment without persistent storage</span>
+                        </label>
+                        <label class="config-option">
+                            <input type="radio" name="storage-type" value="configmap" onclick="updateStorageType('configmap')">
+                            <span class="option-label">ConfigMap Volume</span>
+                            <span class="option-description">Mount configuration files from ConfigMap</span>
+                        </label>
+                        <label class="config-option">
+                            <input type="radio" name="storage-type" value="pvc" onclick="updateStorageType('pvc')">
+                            <span class="option-label">PersistentVolume</span>
+                            <span class="option-description">Persistent storage with PVC</span>
+                        </label>
+                        <label class="config-option">
+                            <input type="radio" name="storage-type" value="statefulset" onclick="updateStorageType('statefulset')">
+                            <span class="option-label">StatefulSet + PVC</span>
+                            <span class="option-description">Stateful application with ordered pods and persistent storage</span>
+                        </label>
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -2821,7 +2847,8 @@ spec:
         let clusterConfig = {
             networkProxy: 'kube-proxy',
             ingress: 'none',
-            dns: 'coredns'
+            dns: 'coredns',
+            storage: 'none'
         };
         
         function updateNetworkProxy(proxyType) {
@@ -2913,33 +2940,99 @@ spec:
             }
         }
         
+        function updateStorageType(storageType) {
+            console.log('Storage type changed to:', storageType);
+            clusterConfig.storage = storageType;
+            
+            // Update timeline steps for storage
+            updateTimelineForConfig();
+            
+            // Update YAML manifest to include storage resources
+            updateYAMLManifest();
+            
+            // If simulation is in progress, reset component states to match new config
+            if (isPlaying || isPaused) {
+                resetComponentStates();
+            }
+        }
+        
         function updateTimelineForConfig() {
             // Add new steps based on configuration
             const step10 = document.getElementById('step-10');
             const step11 = document.getElementById('step-11');
+            const step12 = document.getElementById('step-12');
             
-            if (clusterConfig.networkProxy === 'cilium') {
+            // Storage-specific steps
+            if (clusterConfig.storage !== 'none') {
                 step10.innerHTML = `
-                    <strong>10. Cilium Network Setup</strong>
-                    <div class="step-detail">eBPF programs loaded, network policies applied</div>
+                    <strong>10. ${getStorageStepTitle()}</strong>
+                    <div class="step-detail">${getStorageStepDetail()}</div>
+                `;
+                
+                if (clusterConfig.networkProxy === 'cilium') {
+                    step11.innerHTML = `
+                        <strong>11. Cilium Network Setup</strong>
+                        <div class="step-detail">eBPF programs loaded, network policies applied</div>
+                    `;
+                } else {
+                    step11.innerHTML = `
+                        <strong>11. Service Endpoints</strong>
+                        <div class="step-detail">kube-proxy updates iptables rules</div>
+                    `;
+                }
+                
+                step12.innerHTML = `
+                    <strong>12. Health Checks & Storage Ready</strong>
+                    <div class="step-detail">Readiness probes + volume mounts successful</div>
                 `;
             } else {
-                step10.innerHTML = `
-                    <strong>10. Service Endpoints</strong>
-                    <div class="step-detail">kube-proxy updates iptables rules</div>
+                // No storage - original flow
+                if (clusterConfig.networkProxy === 'cilium') {
+                    step10.innerHTML = `
+                        <strong>10. Cilium Network Setup</strong>
+                        <div class="step-detail">eBPF programs loaded, network policies applied</div>
+                    `;
+                } else {
+                    step10.innerHTML = `
+                        <strong>10. Service Endpoints</strong>
+                        <div class="step-detail">kube-proxy updates iptables rules</div>
+                    `;
+                }
+                
+                if (clusterConfig.ingress !== 'none') {
+                    step11.innerHTML = `
+                        <strong>11. Ingress Configuration</strong>
+                        <div class="step-detail">${clusterConfig.ingress} routes configured</div>
+                    `;
+                } else {
+                    step11.innerHTML = `
+                        <strong>11. DNS Registration</strong>
+                        <div class="step-detail">webapp-service.default.svc.cluster.local</div>
+                    `;
+                }
+                
+                step12.innerHTML = `
+                    <strong>12. Health Checks</strong>
+                    <div class="step-detail">Readiness probes successful</div>
                 `;
             }
-            
-            if (clusterConfig.ingress !== 'none') {
-                step11.innerHTML = `
-                    <strong>11. Ingress Configuration</strong>
-                    <div class="step-detail">${clusterConfig.ingress} routes configured</div>
-                `;
-            } else {
-                step11.innerHTML = `
-                    <strong>11. DNS Registration</strong>
-                    <div class="step-detail">webapp-service.default.svc.cluster.local</div>
-                `;
+        }
+        
+        function getStorageStepTitle() {
+            switch (clusterConfig.storage) {
+                case 'configmap': return 'ConfigMap Volume Mount';
+                case 'pvc': return 'PVC Volume Attachment';
+                case 'statefulset': return 'StatefulSet PVC Provisioning';
+                default: return 'Storage Setup';
+            }
+        }
+        
+        function getStorageStepDetail() {
+            switch (clusterConfig.storage) {
+                case 'configmap': return 'ConfigMap mounted at /etc/config';
+                case 'pvc': return 'Persistent volume claimed and attached';
+                case 'statefulset': return 'Ordered pods with individual PVCs';
+                default: return 'Storage configuration applied';
             }
         }
         
@@ -2950,6 +3043,62 @@ spec:
                 return;
             }
             console.log('Updating YAML manifest with config:', clusterConfig);
+            
+            let yaml = '';
+            
+            // Generate YAML based on storage type
+            if (clusterConfig.storage === 'statefulset') {
+                yaml = generateStatefulSetYAML();
+            } else {
+                yaml = generateDeploymentYAML();
+            }
+            
+            // Add storage resources
+            if (clusterConfig.storage === 'configmap') {
+                yaml += generateConfigMapYAML();
+            } else if (clusterConfig.storage === 'pvc') {
+                yaml += generatePVCYAML();
+            } else if (clusterConfig.storage === 'statefulset') {
+                yaml += generateStorageClassYAML();
+            }
+            
+            // Add service
+            yaml += generateServiceYAML();
+            
+            // Add ingress if configured
+            yaml += finalizeYAMLManifest();
+            
+            // Use innerHTML with proper formatting preserving spaces
+            yamlContent.innerHTML = '<pre>' + yaml + '</pre>';
+        }
+        
+        function generateDeploymentYAML() {
+            let containerSpec = `      containers:
+      - name: webapp
+        image: nginx:1.21
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"`;
+            
+            // Add volume mounts based on storage type
+            if (clusterConfig.storage === 'configmap') {
+                containerSpec += `
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/config`;
+            } else if (clusterConfig.storage === 'pvc') {
+                containerSpec += `
+        volumeMounts:
+        - name: storage-volume
+          mountPath: /data`;
+            }
+            
             let yaml = `apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -2957,6 +3106,44 @@ metadata:
   labels:
     app: webapp
 spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: webapp
+  template:
+    metadata:
+      labels:
+        app: webapp
+    spec:
+${containerSpec}`;
+
+            // Add volumes section
+            if (clusterConfig.storage === 'configmap') {
+                yaml += `
+      volumes:
+      - name: config-volume
+        configMap:
+          name: webapp-config`;
+            } else if (clusterConfig.storage === 'pvc') {
+                yaml += `
+      volumes:
+      - name: storage-volume
+        persistentVolumeClaim:
+          claimName: webapp-pvc`;
+            }
+            
+            return yaml;
+        }
+        
+        function generateStatefulSetYAML() {
+            return `apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: webapp-statefulset
+  labels:
+    app: webapp
+spec:
+  serviceName: webapp-headless
   replicas: 3
   selector:
     matchLabels:
@@ -2978,6 +3165,99 @@ spec:
           limits:
             memory: "128Mi"
             cpu: "100m"
+        volumeMounts:
+        - name: webapp-storage
+          mountPath: /data
+  volumeClaimTemplates:
+  - metadata:
+      name: webapp-storage
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: fast-ssd
+      resources:
+        requests:
+          storage: 1Gi`;
+        }
+        
+        function generateConfigMapYAML() {
+            return `
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: webapp-config
+  labels:
+    app: webapp
+data:
+  nginx.conf: |
+    server {
+        listen 80;
+        server_name localhost;
+        location / {
+            root /usr/share/nginx/html;
+            index index.html;
+        }
+    }
+  app.properties: |
+    environment=production
+    debug=false
+    max_connections=100`;
+        }
+        
+        function generatePVCYAML() {
+            return `
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: webapp-pvc
+  labels:
+    app: webapp
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  storageClassName: standard`;
+        }
+        
+        function generateStorageClassYAML() {
+            return `
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: fast-ssd
+provisioner: kubernetes.io/aws-ebs
+parameters:
+  type: gp2
+  fsType: ext4
+allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer`;
+        }
+        
+        function generateServiceYAML() {
+            let serviceType = clusterConfig.storage === 'statefulset' ? 'headless' : 'regular';
+            
+            if (serviceType === 'headless') {
+                return `
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-headless
+  labels:
+    app: webapp
+spec:
+  clusterIP: None
+  selector:
+    app: webapp
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+    protocol: TCP
 ---
 apiVersion: v1
 kind: Service
@@ -2994,9 +3274,32 @@ spec:
     targetPort: 80
     protocol: TCP
   type: ClusterIP`;
-
+            } else {
+                return `
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-service
+  labels:
+    app: webapp
+spec:
+  selector:
+    app: webapp
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+    protocol: TCP
+  type: ClusterIP`;
+            }
+        }
+        
+        function finalizeYAMLManifest() {
+            let ingressYaml = '';
+            
             if (clusterConfig.ingress === 'nginx') {
-                yaml += `
+                ingressYaml += `
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -3020,7 +3323,7 @@ spec:
             port:
               number: 80`;
             } else if (clusterConfig.ingress === 'traefik') {
-                yaml += `
+                ingressYaml += `
 ---
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
@@ -3039,8 +3342,7 @@ spec:
       port: 80`;
             }
             
-            // Use innerHTML with proper formatting preserving spaces
-            yamlContent.innerHTML = '<pre>' + yaml + '</pre>';
+            return ingressYaml;
         }
         
         // Initialize YAML manifest and new tabs when page loads
@@ -3295,12 +3597,197 @@ spec:
                         apiVersion: 'v2',
                         scope: 'Namespaced'
                     }
-                ]
+                ],
+                // Storage resources based on configuration
+                persistentvolumes: getStoragePVs(),
+                persistentvolumeclaims: getStoragePVCs(),
+                storageclasses: getStorageClasses(),
+                volumeAttachments: getVolumeAttachments()
             };
             
             console.log('getClusterData returning:', clusterData);
             console.log('clusterData.pods:', clusterData.pods);
             return clusterData;
+        }
+        
+        function getStoragePVs() {
+            if (clusterConfig.storage === 'none') return [];
+            
+            if (clusterConfig.storage === 'pvc') {
+                return [
+                    {
+                        name: 'pvc-12345-webapp-pvc',
+                        capacity: '2Gi',
+                        accessModes: 'RWO',
+                        reclaimPolicy: 'Delete',
+                        status: 'Bound',
+                        claim: 'default/webapp-pvc',
+                        storageClass: 'standard',
+                        reason: '',
+                        age: currentStep >= 10 ? '2m' : '0s'
+                    }
+                ];
+            } else if (clusterConfig.storage === 'statefulset') {
+                return [
+                    {
+                        name: 'pvc-11111-webapp-storage-webapp-statefulset-0',
+                        capacity: '1Gi',
+                        accessModes: 'RWO',
+                        reclaimPolicy: 'Delete',
+                        status: currentStep >= 10 ? 'Bound' : 'Pending',
+                        claim: 'default/webapp-storage-webapp-statefulset-0',
+                        storageClass: 'fast-ssd',
+                        reason: '',
+                        age: currentStep >= 10 ? '2m' : '0s'
+                    },
+                    {
+                        name: 'pvc-22222-webapp-storage-webapp-statefulset-1',
+                        capacity: '1Gi',
+                        accessModes: 'RWO',
+                        reclaimPolicy: 'Delete',
+                        status: currentStep >= 10 ? 'Bound' : 'Pending',
+                        claim: 'default/webapp-storage-webapp-statefulset-1',
+                        storageClass: 'fast-ssd',
+                        reason: '',
+                        age: currentStep >= 10 ? '2m' : '0s'
+                    },
+                    {
+                        name: 'pvc-33333-webapp-storage-webapp-statefulset-2',
+                        capacity: '1Gi',
+                        accessModes: 'RWO',
+                        reclaimPolicy: 'Delete',
+                        status: currentStep >= 10 ? 'Bound' : 'Pending',
+                        claim: 'default/webapp-storage-webapp-statefulset-2',
+                        storageClass: 'fast-ssd',
+                        reason: '',
+                        age: currentStep >= 10 ? '2m' : '0s'
+                    }
+                ];
+            }
+            
+            return [];
+        }
+        
+        function getStoragePVCs() {
+            if (clusterConfig.storage === 'none' || clusterConfig.storage === 'configmap') return [];
+            
+            if (clusterConfig.storage === 'pvc') {
+                return [
+                    {
+                        name: 'webapp-pvc',
+                        status: currentStep >= 10 ? 'Bound' : 'Pending',
+                        volume: currentStep >= 10 ? 'pvc-12345-webapp-pvc' : '',
+                        capacity: currentStep >= 10 ? '2Gi' : '',
+                        accessModes: 'RWO',
+                        storageClass: 'standard',
+                        age: currentStep >= 10 ? '2m' : '30s'
+                    }
+                ];
+            } else if (clusterConfig.storage === 'statefulset') {
+                return [
+                    {
+                        name: 'webapp-storage-webapp-statefulset-0',
+                        status: currentStep >= 10 ? 'Bound' : 'Pending',
+                        volume: currentStep >= 10 ? 'pvc-11111-webapp-storage-webapp-statefulset-0' : '',
+                        capacity: currentStep >= 10 ? '1Gi' : '',
+                        accessModes: 'RWO',
+                        storageClass: 'fast-ssd',
+                        age: currentStep >= 10 ? '2m' : '30s'
+                    },
+                    {
+                        name: 'webapp-storage-webapp-statefulset-1',
+                        status: currentStep >= 10 ? 'Bound' : 'Pending',
+                        volume: currentStep >= 10 ? 'pvc-22222-webapp-storage-webapp-statefulset-1' : '',
+                        capacity: currentStep >= 10 ? '1Gi' : '',
+                        accessModes: 'RWO',
+                        storageClass: 'fast-ssd',
+                        age: currentStep >= 10 ? '2m' : '30s'
+                    },
+                    {
+                        name: 'webapp-storage-webapp-statefulset-2',
+                        status: currentStep >= 10 ? 'Bound' : 'Pending',
+                        volume: currentStep >= 10 ? 'pvc-33333-webapp-storage-webapp-statefulset-2' : '',
+                        capacity: currentStep >= 10 ? '1Gi' : '',
+                        accessModes: 'RWO',
+                        storageClass: 'fast-ssd',
+                        age: currentStep >= 10 ? '2m' : '30s'
+                    }
+                ];
+            }
+            
+            return [];
+        }
+        
+        function getStorageClasses() {
+            const baseStorageClasses = [
+                {
+                    name: 'standard',
+                    provisioner: 'kubernetes.io/aws-ebs',
+                    reclaimPolicy: 'Delete',
+                    volumeBindingMode: 'Immediate',
+                    allowVolumeExpansion: 'true',
+                    age: '30d'
+                }
+            ];
+            
+            if (clusterConfig.storage === 'statefulset') {
+                baseStorageClasses.push({
+                    name: 'fast-ssd',
+                    provisioner: 'kubernetes.io/aws-ebs',
+                    reclaimPolicy: 'Delete',
+                    volumeBindingMode: 'WaitForFirstConsumer',
+                    allowVolumeExpansion: 'true',
+                    age: currentStep >= 10 ? '2m' : '30s'
+                });
+            }
+            
+            return baseStorageClasses;
+        }
+        
+        function getVolumeAttachments() {
+            if (clusterConfig.storage === 'none' || clusterConfig.storage === 'configmap') return [];
+            
+            const attachments = [];
+            
+            if (clusterConfig.storage === 'pvc' && currentStep >= 10) {
+                attachments.push({
+                    name: 'csi-aws-ebs-12345',
+                    attacher: 'ebs.csi.aws.com',
+                    pv: 'pvc-12345-webapp-pvc',
+                    node: 'node-1',
+                    attached: 'true',
+                    age: '2m'
+                });
+            } else if (clusterConfig.storage === 'statefulset' && currentStep >= 10) {
+                attachments.push(
+                    {
+                        name: 'csi-aws-ebs-11111',
+                        attacher: 'ebs.csi.aws.com',
+                        pv: 'pvc-11111-webapp-storage-webapp-statefulset-0',
+                        node: 'node-1',
+                        attached: 'true',
+                        age: '2m'
+                    },
+                    {
+                        name: 'csi-aws-ebs-22222',
+                        attacher: 'ebs.csi.aws.com',
+                        pv: 'pvc-22222-webapp-storage-webapp-statefulset-1',
+                        node: 'node-2',
+                        attached: 'true',
+                        age: '2m'
+                    },
+                    {
+                        name: 'csi-aws-ebs-33333',
+                        attacher: 'ebs.csi.aws.com',
+                        pv: 'pvc-33333-webapp-storage-webapp-statefulset-2',
+                        node: 'node-1',
+                        attached: 'true',
+                        age: '2m'
+                    }
+                );
+            }
+            
+            return attachments;
         }
 
         function toggleKubectlShell() {
