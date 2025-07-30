@@ -812,9 +812,10 @@
             <div style="background: linear-gradient(135deg, #6c5ce7, #a29bfe); color: white; padding: 20px; border-radius: 15px; margin: 20px 0;">
                 <h4 style="color: white; margin-bottom: 10px;">🎯 Why TCP_RR Matters for EKS Microservices</h4>
                 <p style="color: white; font-size: 0.95em; margin: 0;">
-                    <strong>High-frequency API calls:</strong> Payment processing, real-time data, user authentication<br>
-                    <strong>Microservice mesh:</strong> Service-to-service communication patterns<br>
-                    <strong>Auto-scaling scenarios:</strong> New connections under load = where iptables struggles most
+                    <strong>Request-Response workloads:</strong> APIs REST, GraphQL, gRPC calls (typique des microservices)<br>
+                    <strong>Latence critique:</strong> Trading, gaming, IoT où chaque milliseconde compte<br>
+                    <strong>Scale-out patterns:</strong> Nouvelles connexions fréquentes = goulet d'étranglement iptables<br>
+                    <strong>Production reality:</strong> 80% du trafic microservices = petites requêtes haute fréquence
                 </p>
             </div>
         </div>
