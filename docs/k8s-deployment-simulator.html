@@ -298,6 +298,12 @@
             font-size: 0.85em;
             line-height: 1.3;
             word-wrap: break-word;
+            cursor: pointer;
+        }
+        
+        .timeline-step:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(3px);
         }
         
         .timeline-step.active {
@@ -2512,6 +2518,97 @@ spec:
             }
         }
         
+        // Function to jump to a specific step
+        function jumpToStep(targetStep) {
+            console.log('Jumping to step:', targetStep);
+            
+            // Pause the current simulation
+            isPaused = true;
+            isPlaying = false;
+            clearTimeout(deploymentInterval);
+            updateButtons();
+            
+            // Reset all component states
+            resetComponentStates();
+            
+            // Update current step
+            currentStep = targetStep;
+            
+            // Reset all timeline steps
+            document.querySelectorAll('.timeline-step').forEach(step => {
+                step.classList.remove('active', 'completed');
+            });
+            
+            // Mark previous steps as completed and current as active
+            for (let i = 0; i < targetStep; i++) {
+                const prevStep = document.getElementById(`step-${i + 1}`);
+                if (prevStep) {
+                    prevStep.classList.add('completed');
+                }
+            }
+            
+            const currentStepElement = document.getElementById(`step-${targetStep + 1}`);
+            if (currentStepElement) {
+                currentStepElement.classList.add('active');
+            }
+            
+            // Execute all steps up to the target step
+            for (let i = 0; i <= targetStep; i++) {
+                // Execute each step function based on the step number
+                switch (i) {
+                    case 0: executeStep1(); break;
+                    case 1: executeStep2(); break;
+                    case 2: executeStep3(); break;
+                    case 3: executeStep4(); break;
+                    case 4: executeStep5(); break;
+                    case 5: executeStep6(); break;
+                    case 6: executeStep7(); break;
+                    case 7: executeStep8(); break;
+                    case 8: executeStep9(); break;
+                    case 9: executeStep10(); break;
+                    case 10: executeStep11(); break;
+                    case 11: executeStep12(); break;
+                }
+            }
+            
+            // Clear and rebuild logs up to current step
+            const logsContent = document.getElementById('logsContent');
+            logsContent.innerHTML = '';
+            for (let i = 1; i <= targetStep + 1; i++) {
+                updateLiveLogs(i);
+            }
+            
+            // Update kubectl tab indicator if pods are running
+            updateKubectlTabIndicator();
+            
+            // Refresh kubectl and logs content to reflect the new state
+            refreshKubectlAndLogs();
+        }
+        
+        // Function to refresh kubectl and logs content based on current step
+        function refreshKubectlAndLogs() {
+            // If kubectl tab is active, refresh its content
+            const kubectlContent = document.getElementById('kubectlContent');
+            if (kubectlContent.style.display !== 'none') {
+                // Clear any existing command results to show fresh state
+                const kubectlOutput = kubectlContent.querySelector('.kubectl-shell-output');
+                if (kubectlOutput) {
+                    kubectlOutput.innerHTML = '';
+                }
+            }
+        }
+        
+        // Add click handlers to timeline steps
+        function initializeTimelineClickHandlers() {
+            document.querySelectorAll('.timeline-step').forEach((step, index) => {
+                step.addEventListener('click', function() {
+                    // Extract step number from ID (step-1, step-2, etc.)
+                    const stepNumber = parseInt(this.id.replace('step-', '')) - 1;
+                    jumpToStep(stepNumber);
+                });
+            });
+        }
+        
         // Configuration state
         let clusterConfig = {
             networkProxy: 'kube-proxy',
@@ -2743,6 +2840,7 @@ spec:
             updateYAMLManifest();
             initializeKubectlShell();
             initializeTabs();
+            initializeTimelineClickHandlers();
         });
 
         // Tab System Functions
@@ -4595,6 +4693,7 @@ status:
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Page loaded, initializing...');
             updateButtons();
+            initializeTimelineClickHandlers();
             console.log('Initialization complete');
         });
     </script>
