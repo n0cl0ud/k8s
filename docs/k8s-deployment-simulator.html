@@ -23,7 +23,7 @@
             max-width: 1800px;
             margin: 0 auto;
             padding: 20px;
-            padding-right: calc(35vw + 40px); /* Espace pour les onglets */
+            padding-right: calc(min(420px, 32vw) + 40px); /* Espace pour les onglets mais limité */
         }
         
         h1 {
@@ -330,6 +330,25 @@
             color: #4CAF50;
             font-weight: bold;
             margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .yaml-toggle {
+            background: transparent;
+            border: none;
+            color: #4CAF50;
+            font-size: 1.2em;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 3px;
+            transition: all 0.2s ease;
+        }
+
+        .yaml-toggle:hover {
+            background: rgba(76, 175, 80, 0.1);
+            transform: scale(1.1);
         }
         
         #yaml-content {
@@ -349,6 +368,14 @@
             border: none;
             font-size: inherit;
             line-height: inherit;
+        }
+
+        .yaml-manifest.collapsed #yaml-content {
+            display: none;
+        }
+
+        .yaml-manifest.collapsed {
+            margin-bottom: 5px;
         }
         
         .progress-bar {
@@ -639,11 +666,11 @@
         /* Integrated Terminal Tabs */
         .terminal-tabs {
             position: fixed;
-            top: 20px;
+            top: 80px;
             right: 20px;
-            width: min(450px, 35vw);
-            height: 75vh;
-            max-height: 600px;
+            width: min(420px, 32vw);
+            height: 65vh;
+            max-height: 500px;
             background: rgba(10, 10, 10, 0.95);
             border: 2px solid rgba(76, 175, 80, 0.3);
             border-radius: 15px;
@@ -1317,7 +1344,10 @@
         </div>
         
         <div class="yaml-manifest">
-            <div class="yaml-title">📝 Manifest to deploy:</div>
+            <div class="yaml-title">
+                📝 Manifest to deploy:
+                <button class="yaml-toggle" onclick="toggleYAMLManifest()">▼</button>
+            </div>
             <div id="yaml-content">
 <pre>apiVersion: apps/v1
 kind: Deployment
@@ -1971,6 +2001,21 @@ spec:
                     timeline.classList.add('collapsed');
                     toggleButton.textContent = '▶';
                     console.log('Timeline collapsed');
+                }
+            }
+        }
+
+        function toggleYAMLManifest() {
+            const yamlManifest = document.querySelector('.yaml-manifest');
+            const toggleButton = document.querySelector('.yaml-toggle');
+            
+            if (yamlManifest && toggleButton) {
+                if (yamlManifest.classList.contains('collapsed')) {
+                    yamlManifest.classList.remove('collapsed');
+                    toggleButton.textContent = '▼';
+                } else {
+                    yamlManifest.classList.add('collapsed');
+                    toggleButton.textContent = '▶';
                 }
             }
         }
@@ -2735,7 +2780,10 @@ spec:
             const serviceActive = currentStep >= 9;
             const podsCreated = currentStep >= 5; // Pods créés dès l'étape 5
             
-            return {
+            console.log('getClusterData called, currentStep:', currentStep);
+            console.log('podsCreated:', podsCreated, 'podsRunning:', podsRunning);
+            
+            const clusterData = {
                 pods: podsCreated ? [
                     {
                         name: 'webapp-deployment-abc123-pod1',
@@ -2929,6 +2977,10 @@ spec:
                     }
                 ]
             };
+            
+            console.log('getClusterData returning:', clusterData);
+            console.log('clusterData.pods:', clusterData.pods);
+            return clusterData;
         }
 
         function toggleKubectlShell() {
@@ -3180,10 +3232,15 @@ spec:
         }
 
         function getPodsTable(pods) {
+            console.log('getPodsTable called with:', pods);
+            console.log('pods type:', typeof pods);
+            console.log('is array:', Array.isArray(pods));
+            
             let table = `<div class="kubectl-output">
                 <div class="kubectl-header">NAME                           READY   STATUS    RESTARTS   AGE</div>`;
             
             if (!pods || !Array.isArray(pods)) {
+                console.log('No pods found, returning no resources');
                 table += `<div class="kubectl-row">No resources found</div>`;
                 table += `</div>`;
                 return table;
