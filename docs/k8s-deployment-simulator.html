@@ -675,6 +675,8 @@
             align-items: center;
             justify-content: center;
             gap: 6px;
+            position: relative;
+            z-index: 10;
         }
 
         .tab-header.active {
@@ -1812,9 +1814,11 @@ spec:
 
         // Terminal Functions
         function handleTerminalInput(event) {
+            console.log('handleTerminalInput called', event.key);
             if (event.key === 'Enter') {
                 const input = event.target;
                 const command = input.value.trim();
+                console.log('Command entered:', command);
                 
                 if (command) {
                     // Add to history
@@ -1822,6 +1826,7 @@ spec:
                     historyIndex = terminalHistory.length;
                     
                     // Process command
+                    console.log('Processing command:', command);
                     processKubectlCommand(command);
                     input.value = '';
                 }
@@ -1844,7 +1849,14 @@ spec:
         }
 
         function processKubectlCommand(command) {
+            console.log('processKubectlCommand called with:', command);
             const output = document.getElementById('terminalOutput');
+            console.log('terminalOutput element:', output);
+            
+            if (!output) {
+                console.error('terminalOutput element not found!');
+                return;
+            }
             
             // Add command to output
             const commandDiv = document.createElement('div');
@@ -1853,7 +1865,9 @@ spec:
             output.appendChild(commandDiv);
             
             // Process the command
+            console.log('Calling executeKubectlCommand...');
             const result = executeKubectlCommand(command);
+            console.log('Command result:', result);
             const resultDiv = document.createElement('div');
             resultDiv.innerHTML = result;
             resultDiv.style.marginBottom = '15px';
