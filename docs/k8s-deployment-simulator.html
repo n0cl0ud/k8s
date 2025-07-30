@@ -1178,7 +1178,7 @@
         <div class="yaml-manifest">
             <div class="yaml-title">📝 Manifest to deploy:</div>
             <div id="yaml-content">
-apiVersion: apps/v1
+<pre>apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: webapp-deployment
@@ -1222,7 +1222,7 @@ spec:
     port: 80
     targetPort: 80
     protocol: TCP
-  type: ClusterIP
+  type: ClusterIP</pre>
             </div>
         </div>
         
@@ -1262,10 +1262,12 @@ spec:
                 <div class="tab-panel active" id="timeline-panel">
                     <div class="timeline-container">
                         <div class="timeline" id="timeline">
-                            <div style="color: #4CAF50; font-weight: bold; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px;">
-                                📋 Deployment Timeline
+                            <div class="timeline-header">
+                                <h3>📋 Deployment Timeline</h3>
+                                <button class="timeline-toggle" onclick="toggleTimeline()">▼</button>
                             </div>
-                            <div class="timeline-step" id="step-1">
+                            <div class="timeline-content" id="timeline-content">
+                                <div class="timeline-step" id="step-1">
                                 <strong>1. kubectl apply</strong>
                                 <div class="step-detail">Sending YAML to API Server</div>
                             </div>
@@ -1312,6 +1314,7 @@ spec:
                             <div class="timeline-step" id="step-12">
                                 <strong>12. Health Checks</strong>
                                 <div class="step-detail">Readiness probes successful</div>
+                            </div>
                             </div>
                         </div>
                     </div>
@@ -1745,6 +1748,19 @@ spec:
             const badge = document.getElementById(tabName + '-badge');
             if (badge) {
                 badge.classList.remove('show');
+            }
+        }
+
+        function toggleTimeline() {
+            const timelineContent = document.getElementById('timeline-content');
+            const toggleButton = document.querySelector('.timeline-toggle');
+            
+            if (timelineContent.classList.contains('collapsed')) {
+                timelineContent.classList.remove('collapsed');
+                toggleButton.textContent = '▼';
+            } else {
+                timelineContent.classList.add('collapsed');
+                toggleButton.textContent = '▶';
             }
         }
         
