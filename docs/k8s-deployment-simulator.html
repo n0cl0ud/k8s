@@ -1165,6 +1165,33 @@
             height: calc(100vh - 60px);
         }
 
+        /* Terminal tabs minimized mode */
+        .terminal-tabs.minimized {
+            width: auto;
+            height: auto;
+            min-width: 200px;
+            max-width: 300px;
+            min-height: 60px;
+            max-height: 80px;
+            background: rgba(76, 175, 80, 0.2);
+            transform: scale(0.8);
+            transition: all 0.3s ease;
+        }
+
+        .terminal-tabs.minimized:hover {
+            transform: scale(0.85);
+            background: rgba(76, 175, 80, 0.3);
+        }
+
+        .terminal-tabs.minimized .tab-panels {
+            display: none;
+        }
+
+        .terminal-tabs.minimized .tab-headers {
+            padding: 8px;
+            border-radius: 15px;
+        }
+
         /* Responsive design */
         @media (max-width: 768px) {
             .terminal-tabs {
@@ -1863,18 +1890,24 @@ spec:
 
         function toggleTimeline() {
             console.log('toggleTimeline called');
+            const terminalTabs = document.querySelector('.terminal-tabs');
             const timeline = document.getElementById('timeline');
             const toggleButton = document.querySelector('.timeline-toggle');
             
+            console.log('terminalTabs:', terminalTabs);
             console.log('timeline:', timeline);
             console.log('toggleButton:', toggleButton);
             
-            if (timeline && toggleButton) {
-                if (timeline.classList.contains('collapsed')) {
+            if (terminalTabs && timeline && toggleButton) {
+                if (terminalTabs.classList.contains('minimized')) {
+                    // Restaurer
+                    terminalTabs.classList.remove('minimized');
                     timeline.classList.remove('collapsed');
                     toggleButton.textContent = '▼';
                     console.log('Timeline expanded');
                 } else {
+                    // Minimiser
+                    terminalTabs.classList.add('minimized');
                     timeline.classList.add('collapsed');
                     toggleButton.textContent = '▶';
                     console.log('Timeline collapsed');
