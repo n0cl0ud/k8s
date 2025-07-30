@@ -2568,13 +2568,9 @@ spec:
         }
 
         function initializeTabs() {
-            // Auto-switch to kubectl tab when deployment starts
-            const originalStartDeployment = startDeployment;
-            window.startDeployment = function() {
-                originalStartDeployment();
-                switchTabProgrammatically('kubectl');
-                updateTabIndicators();
-            };
+            // Keep the original startDeployment without auto-switching tabs
+            // This allows users to watch the timeline during deployment
+            updateTabIndicators();
         }
 
         function updateTabIndicators() {
@@ -2936,63 +2932,6 @@ spec:
             }
         }
 
-        function executeKubectlCommand(command) {
-            if (!command) return;
-            
-            // Add to history
-            terminalHistory.unshift(command);
-            if (terminalHistory.length > 50) terminalHistory.pop();
-            historyIndex = -1;
-            
-            const kubectlContent = document.getElementById('kubectlContent');
-            
-            // Show command being executed
-            const commandDiv = document.createElement('div');
-            commandDiv.className = 'shell-output';
-            commandDiv.innerHTML = `<span style="color: #4CAF50; font-weight: bold;">$ kubectl ${command}</span>`;
-            kubectlContent.appendChild(commandDiv);
-            
-            // Parse command
-            const parts = command.toLowerCase().split(' ');
-            const cmd = parts[0];
-            const resource = parts[1];
-            const resourceName = parts[2];
-            const flags = parts.slice(2).filter(p => p.startsWith('-'));
-            
-            let output = '';
-            
-            try {
-                const clusterData = getClusterData();
-                
-                switch (cmd) {
-                    case 'get':
-                        output = handleGetCommand(resource, resourceName, flags, clusterData);
-                        break;
-                    case 'describe':
-                        output = handleDescribeCommand(resource, resourceName, clusterData);
-                        break;
-                    case 'logs':
-                        output = handleLogsCommand(resource, clusterData);
-                        break;
-                    case 'api-resources':
-                        output = handleApiResourcesCommand();
-                        break;
-                    default:
-                        output = `<div class="error-output">Error: unknown command "${cmd}"</div>`;
-                }
-            } catch (error) {
-                output = `<div class="error-output">Error: ${error.message}</div>`;
-            }
-            
-            // Show output
-            const outputDiv = document.createElement('div');
-            outputDiv.className = 'shell-output';
-            outputDiv.innerHTML = output;
-            kubectlContent.appendChild(outputDiv);
-            
-            // Scroll to bottom
-            kubectlContent.scrollTop = kubectlContent.scrollHeight;
-        }
 
         function handleGetCommand(resource, resourceName, flags, clusterData) {
             const outputYaml = flags.includes('-o') && (flags.includes('yaml') || flags.includes('json'));
@@ -3079,6 +3018,12 @@ spec:
             let table = `<div class="kubectl-output">
                 <div class="kubectl-header">NAME                           READY   STATUS    RESTARTS   AGE</div>`;
             
+            if (!pods || !Array.isArray(pods)) {
+                table += `<div class="kubectl-row">No resources found</div>`;
+                table += `</div>`;
+                return table;
+            }
+            
             pods.forEach(pod => {
                 const statusClass = pod.status.toLowerCase() === 'running' ? 'status-running' : 
                                    pod.status.toLowerCase() === 'pending' ? 'status-pending' : 'status-error';
@@ -3098,6 +3043,12 @@ spec:
             let table = `<div class="kubectl-output">
                 <div class="kubectl-header">NAME             TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE</div>`;
             
+            if (!services || !Array.isArray(services)) {
+                table += `<div class="kubectl-row">No resources found</div>`;
+                table += `</div>`;
+                return table;
+            }
+            
             services.forEach(service => {
                 table += `<div class="kubectl-row">
                     <span class="resource-name">${service.name}</span>
@@ -3115,6 +3066,12 @@ spec:
         function getDeploymentsTable(deployments) {
             let table = `<div class="kubectl-output">
                 <div class="kubectl-header">NAME               READY   UP-TO-DATE   AVAILABLE   AGE</div>`;
+            
+            if (!deployments || !Array.isArray(deployments)) {
+                table += `<div class="kubectl-row">No resources found</div>`;
+                table += `</div>`;
+                return table;
+            }
             
             deployments.forEach(deployment => {
                 table += `<div class="kubectl-row">
@@ -4020,7 +3977,6 @@ status:
         // Initialize everything when page loads
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Page loaded, initializing...');
-            initializeKubectlShell();
             updateButtons();
             console.log('Initialization complete');
         });
