@@ -602,64 +602,86 @@
             }
         }
 
-        /* kubectl Shell Terminal Styles */
-        .kubectl-shell {
+        /* Integrated Terminal Tabs */
+        .terminal-tabs {
             position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 45vh;
-            background: rgba(10, 10, 10, 0.98);
-            border-top: 3px solid #4CAF50;
-            z-index: 1000;
-            transition: transform 0.3s ease;
-            transform: translateY(calc(45vh - 40px));
-            backdrop-filter: blur(10px);
+            top: 20px;
+            right: 20px;
+            width: min(450px, 30vw);
+            height: 85vh;
+            background: rgba(10, 10, 10, 0.95);
+            border: 2px solid rgba(76, 175, 80, 0.3);
+            border-radius: 15px;
+            backdrop-filter: blur(20px);
+            z-index: 100;
             font-family: 'JetBrains Mono', 'Courier New', monospace;
-        }
-
-        .kubectl-shell.open {
-            transform: translateY(0);
-        }
-
-        .shell-header {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 15px;
+            flex-direction: column;
+        }
+
+        .tab-headers {
+            display: flex;
             background: rgba(76, 175, 80, 0.1);
             border-bottom: 1px solid rgba(76, 175, 80, 0.3);
-            cursor: pointer;
+            border-radius: 15px 15px 0 0;
         }
 
-        .shell-title {
-            color: #4CAF50;
+        .tab-header {
+            flex: 1;
+            padding: 12px 8px;
+            text-align: center;
+            cursor: pointer;
+            color: #888;
+            font-size: 0.85em;
             font-weight: bold;
-            font-size: 0.9em;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            transition: all 0.2s ease;
+            border-bottom: 3px solid transparent;
         }
 
-        .shell-toggle {
-            background: none;
-            border: none;
+        .tab-header.active {
             color: #4CAF50;
-            font-size: 1.2em;
-            cursor: pointer;
-            transition: transform 0.2s ease;
+            background: rgba(76, 175, 80, 0.1);
+            border-bottom-color: #4CAF50;
         }
 
-        .shell-toggle:hover {
-            transform: rotate(180deg);
+        .tab-header:hover {
+            color: #66BB6A;
+            background: rgba(76, 175, 80, 0.05);
         }
 
-        .shell-content {
-            height: calc(100% - 40px);
-            overflow-y: auto;
+        .tab-content {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .tab-panel {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             padding: 15px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        /* kubectl Terminal Panel */
+        .kubectl-panel {
             background: #0a0a0a;
-            max-height: calc(45vh - 40px);
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .kubectl-content {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 10px;
         }
 
         .shell-output {
@@ -788,6 +810,300 @@
             border-radius: 5px;
             border-left: 3px solid #F44336;
         }
+
+        /* Terminal Tabs Styles */
+        .terminal-tabs {
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 10px;
+            margin: 20px 0;
+            overflow: hidden;
+            border: 1px solid #333;
+        }
+
+        .tab-headers {
+            display: flex;
+            background: #2d2d2d;
+            border-bottom: 1px solid #444;
+        }
+
+        .tab-header {
+            flex: 1;
+            padding: 12px 20px;
+            cursor: pointer;
+            border-right: 1px solid #444;
+            background: #2d2d2d;
+            color: #ccc;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+            position: relative;
+        }
+
+        .tab-header:last-child {
+            border-right: none;
+        }
+
+        .tab-header:hover {
+            background: #3d3d3d;
+            color: #fff;
+        }
+
+        .tab-header.active {
+            background: #1e1e1e;
+            color: #4CAF50;
+            border-bottom: 2px solid #4CAF50;
+        }
+
+        .tab-icon {
+            font-size: 16px;
+        }
+
+        .tab-badge {
+            background: #FF5722;
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: auto;
+            min-width: 16px;
+            text-align: center;
+            display: none;
+        }
+
+        .tab-badge.show {
+            display: block;
+        }
+
+        .tab-panels {
+            height: 500px;
+            overflow: hidden;
+        }
+
+        .tab-panel {
+            height: 100%;
+            display: none;
+            background: #1e1e1e;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        /* Timeline specific styles */
+        .timeline-container {
+            height: 100%;
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .timeline {
+            background: transparent;
+        }
+
+        .timeline-step {
+            padding: 10px 15px;
+            margin: 8px 0;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.05);
+            border-left: 3px solid #666;
+            transition: all 0.3s ease;
+        }
+
+        .timeline-step.active {
+            background: rgba(76, 175, 80, 0.1);
+            border-left-color: #4CAF50;
+            transform: translateX(5px);
+        }
+
+        .timeline-step.completed {
+            background: rgba(76, 175, 80, 0.05);
+            border-left-color: #4CAF50;
+            opacity: 0.7;
+        }
+
+        .step-detail {
+            color: #ccc;
+            font-size: 0.9em;
+            margin-top: 4px;
+            font-weight: normal;
+        }
+
+        /* kubectl Terminal styles */
+        .kubectl-terminal {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .terminal-header {
+            background: #2d2d2d;
+            padding: 10px 15px;
+            border-bottom: 1px solid #444;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .terminal-title {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        .terminal-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .terminal-btn {
+            background: #333;
+            color: #ccc;
+            border: 1px solid #555;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.2s ease;
+        }
+
+        .terminal-btn:hover {
+            background: #444;
+            color: #fff;
+        }
+
+        .terminal-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .terminal-output {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+            background: #1e1e1e;
+        }
+
+        .terminal-input-line {
+            display: flex;
+            align-items: center;
+            background: #2d2d2d;
+            padding: 10px 15px;
+            border-top: 1px solid #444;
+        }
+
+        .terminal-prompt {
+            color: #4CAF50;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .terminal-input::placeholder {
+            color: #666;
+        }
+
+        /* Logs styles */
+        .logs-container {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logs-header {
+            background: #2d2d2d;
+            padding: 10px 15px;
+            border-bottom: 1px solid #444;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logs-title {
+            color: #2196F3;
+            font-weight: bold;
+        }
+
+        .logs-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .logs-output {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            background: #1e1e1e;
+            color: #ccc;
+        }
+
+        .log-entry {
+            margin-bottom: 2px;
+            padding: 2px 0;
+        }
+
+        .log-timestamp {
+            color: #666;
+            margin-right: 8px;
+        }
+
+        .log-level-info {
+            color: #2196F3;
+        }
+
+        .log-level-warn {
+            color: #FF9800;
+        }
+
+        .log-level-error {
+            color: #F44336;
+        }
+
+        .log-level-success {
+            color: #4CAF50;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .terminal-tabs {
+                margin: 10px 0;
+            }
+
+            .tab-panels {
+                height: 400px;
+            }
+
+            .tab-header {
+                padding: 10px 12px;
+                font-size: 14px;
+            }
+
+            .tab-header span:not(.tab-icon) {
+                display: none;
+            }
+
+            .tab-header .tab-icon {
+                font-size: 18px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -915,11 +1231,131 @@ spec:
             <button onclick="pauseDeployment()" id="pauseBtn" disabled>⏸️ Pause</button>
             <button onclick="resetSimulation()" id="resetBtn">🔄 Reset</button>
             <button onclick="toggleSpeed()" id="speedBtn">⚡ Speed: 1x</button>
-            <button onclick="toggleKubectlShell()" id="shellBtn">💻 kubectl Terminal</button>
         </div>
         
         <div class="progress-bar">
             <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <!-- Terminal Tabs Integration -->
+        <div class="terminal-tabs">
+            <div class="tab-headers">
+                <div class="tab-header active" onclick="switchTab(event, 'timeline')">
+                    <span class="tab-icon">⏱️</span>
+                    <span>Timeline</span>
+                    <span class="tab-badge" id="timeline-badge"></span>
+                </div>
+                <div class="tab-header" onclick="switchTab(event, 'kubectl')">
+                    <span class="tab-icon">⚡</span>
+                    <span>kubectl</span>
+                    <span class="tab-badge" id="kubectl-badge"></span>
+                </div>
+                <div class="tab-header" onclick="switchTab(event, 'logs')">
+                    <span class="tab-icon">📋</span>
+                    <span>Logs</span>
+                    <span class="tab-badge" id="logs-badge"></span>
+                </div>
+            </div>
+            
+            <div class="tab-panels">
+                <!-- Timeline Panel -->
+                <div class="tab-panel active" id="timeline-panel">
+                    <div class="timeline-container">
+                        <div class="timeline" id="timeline">
+                            <div style="color: #4CAF50; font-weight: bold; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px;">
+                                📋 Deployment Timeline
+                            </div>
+                            <div class="timeline-step" id="step-1">
+                                <strong>1. kubectl apply</strong>
+                                <div class="step-detail">Sending YAML to API Server</div>
+                            </div>
+                            <div class="timeline-step" id="step-2">
+                                <strong>2. API Validation</strong>
+                                <div class="step-detail">Authentication + RBAC + Admission</div>
+                            </div>
+                            <div class="timeline-step" id="step-3">
+                                <strong>3. etcd Storage</strong>
+                                <div class="step-detail">Deployment & Service objects persisted</div>
+                            </div>
+                            <div class="timeline-step" id="step-4">
+                                <strong>4. Controller Detection</strong>
+                                <div class="step-detail">Deployment Controller creates ReplicaSet</div>
+                            </div>
+                            <div class="timeline-step" id="step-5">
+                                <strong>5. ReplicaSet Creation</strong>
+                                <div class="step-detail">3 Pod specs generated</div>
+                            </div>
+                            <div class="timeline-step" id="step-6">
+                                <strong>6. Pod Scheduling</strong>
+                                <div class="step-detail">Scheduler assigns pods to nodes</div>
+                            </div>
+                            <div class="timeline-step" id="step-7">
+                                <strong>7. Kubelet Action</strong>
+                                <div class="step-detail">Container creation on worker nodes</div>
+                            </div>
+                            <div class="timeline-step" id="step-8">
+                                <strong>8. Image Pull</strong>
+                                <div class="step-detail">nginx:1.21 downloaded</div>
+                            </div>
+                            <div class="timeline-step" id="step-9">
+                                <strong>9. Container Start</strong>
+                                <div class="step-detail">Pods transition to Running</div>
+                            </div>
+                            <div class="timeline-step" id="step-10">
+                                <strong>10. Service Endpoints</strong>
+                                <div class="step-detail">kube-proxy updates iptables</div>
+                            </div>
+                            <div class="timeline-step" id="step-11">
+                                <strong>11. DNS Registration</strong>
+                                <div class="step-detail">webapp-service.default.svc.cluster.local</div>
+                            </div>
+                            <div class="timeline-step" id="step-12">
+                                <strong>12. Health Checks</strong>
+                                <div class="step-detail">Readiness probes successful</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- kubectl Panel -->
+                <div class="tab-panel" id="kubectl-panel">
+                    <div class="kubectl-terminal">
+                        <div class="terminal-header">
+                            <span class="terminal-title">🔧 kubectl Terminal</span>
+                            <div class="terminal-controls">
+                                <button class="terminal-btn" onclick="clearTerminal()">Clear</button>
+                                <button class="terminal-btn" onclick="toggleTerminalFullscreen()">⛶</button>
+                            </div>
+                        </div>
+                        <div class="terminal-body">
+                            <div class="terminal-output" id="terminalOutput"></div>
+                            <div class="terminal-input-line">
+                                <span class="terminal-prompt">kubectl&gt;</span>
+                                <input type="text" 
+                                       id="terminalInput" 
+                                       class="terminal-input" 
+                                       placeholder="Type kubectl commands... (try 'get pods' or 'help')"
+                                       autocomplete="off"
+                                       onkeypress="handleTerminalInput(event)">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Logs Panel -->
+                <div class="tab-panel" id="logs-panel">
+                    <div class="logs-container">
+                        <div class="logs-header">
+                            <span class="logs-title">📋 Live Cluster Logs</span>
+                            <div class="logs-controls">
+                                <button class="terminal-btn" onclick="clearLogs()">Clear</button>
+                                <button class="terminal-btn" onclick="toggleAutoScroll()" id="autoScrollBtn">📍 Auto-scroll: ON</button>
+                            </div>
+                        </div>
+                        <div class="logs-output" id="logsOutput"></div>
+                    </div>
+                </div>
+            </div>
         </div>
         
         <div class="cluster-view">
@@ -1040,87 +1476,7 @@ spec:
         </div>
     </div>
     
-    <div class="timeline">
-        <div class="timeline-header">
-            <h3>📋 Deployment Timeline</h3>
-            <button class="timeline-toggle" onclick="toggleTimeline()">▼</button>
-        </div>
-        <div class="timeline-content">
-        <div class="timeline-step" id="step-1">
-            <strong>1. kubectl apply</strong>
-            <div class="step-detail">Sending YAML to API Server</div>
-        </div>
-        <div class="timeline-step" id="step-2">
-            <strong>2. API Validation</strong>
-            <div class="step-detail">Authentication + RBAC + Admission</div>
-        </div>
-        <div class="timeline-step" id="step-3">
-            <strong>3. etcd Storage</strong>
-            <div class="step-detail">Deployment & Service objects persisted</div>
-        </div>
-        <div class="timeline-step" id="step-4">
-            <strong>4. Controller Detection</strong>
-            <div class="step-detail">Deployment Controller creates ReplicaSet</div>
-        </div>
-        <div class="timeline-step" id="step-5">
-            <strong>5. ReplicaSet Creation</strong>
-            <div class="step-detail">3 Pod specs generated</div>
-        </div>
-        <div class="timeline-step" id="step-6">
-            <strong>6. Pod Scheduling</strong>
-            <div class="step-detail">Scheduler assigns pods to nodes</div>
-        </div>
-        <div class="timeline-step" id="step-7">
-            <strong>7. Kubelet Action</strong>
-            <div class="step-detail">Container creation on worker nodes</div>
-        </div>
-        <div class="timeline-step" id="step-8">
-            <strong>8. Image Pull</strong>
-            <div class="step-detail">nginx:1.21 downloaded</div>
-        </div>
-        <div class="timeline-step" id="step-9">
-            <strong>9. Container Start</strong>
-            <div class="step-detail">Pods transition to Running</div>
-        </div>
-        <div class="timeline-step" id="step-10">
-            <strong>10. Service Endpoints</strong>
-            <div class="step-detail">kube-proxy updates iptables</div>
-        </div>
-        <div class="timeline-step" id="step-11">
-            <strong>11. DNS Registration</strong>
-            <div class="step-detail">webapp-service.default.svc.cluster.local</div>
-        </div>
-        <div class="timeline-step" id="step-12">
-            <strong>12. Health Checks</strong>
-            <div class="step-detail">Readiness probes successful</div>
-        </div>
-        </div>
-    </div>
-
-    <!-- kubectl Interactive Shell -->
-    <div class="kubectl-shell" id="kubectlShell">
-        <div class="shell-header" onclick="toggleKubectlShell()">
-            <div class="shell-title">
-                <span>💻</span>
-                <span>kubectl Interactive Terminal</span>
-                <span style="font-size: 0.7em; opacity: 0.7;">(Tab for completion, ↑↓ for history)</span>
-            </div>
-            <button class="shell-toggle">▼</button>
-        </div>
-        <div class="shell-content" id="shellContent">
-            <div class="shell-output">
-                <div style="color: #4CAF50;">Welcome to kubectl interactive terminal!</div>
-                <div style="color: #888; font-size: 0.8em;">Try: get pods (or get po), get services (or get svc), get configmaps (or get cm)</div>
-                <div style="color: #888; font-size: 0.8em;">Advanced: get secrets, get crd, get events, get ns, api-resources</div>
-                <div style="color: #666; font-size: 0.75em;">Shortcuts: po=pods, svc=services, deploy=deployments, rs=replicasets, cm=configmaps, no=nodes, ev=events, ns=namespaces</div>
-            </div>
-            <div class="shell-prompt">
-                <span class="prompt-symbol">$ kubectl</span>
-                <input type="text" class="shell-input" id="shellInput" placeholder="get pods" autocomplete="off">
-                <div class="autocomplete-suggestions" id="autocompleteSuggestions" style="display: none;"></div>
-            </div>
-        </div>
-    </div>
+    <!-- Integrated Terminal Tabs -->  
 
     <script>
         let currentStep = 0;
@@ -1128,6 +1484,9 @@ spec:
         let isPaused = false;
         let deploymentInterval;
         let speed = 1; // 1x, 2x, 4x
+        let autoScroll = true;
+        let terminalHistory = [];
+        let historyIndex = -1;
         
         const steps = [
             {
@@ -1251,6 +1610,143 @@ spec:
             document.getElementById('pauseBtn').disabled = !isPlaying || isPaused;
             document.getElementById('playBtn').textContent = isPaused ? '▶️ Resume' : '▶️ Play Deployment';
         }
+
+        // Tab Management Functions
+        function switchTab(event, tabName) {
+            // Remove active class from all headers and panels
+            document.querySelectorAll('.tab-header').forEach(header => {
+                header.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-panel').forEach(panel => {
+                panel.classList.remove('active');
+            });
+            
+            // Add active class to clicked header and corresponding panel  
+            event.target.classList.add('active');
+            document.getElementById(tabName + '-panel').classList.add('active');
+            
+            // Hide notification badge for the active tab
+            hideTabNotification(tabName);
+        }
+
+        // Terminal Functions
+        function handleTerminalInput(event) {
+            if (event.key === 'Enter') {
+                const input = event.target;
+                const command = input.value.trim();
+                
+                if (command) {
+                    // Add to history
+                    terminalHistory.push(command);
+                    historyIndex = terminalHistory.length;
+                    
+                    // Process command
+                    processKubectlCommand(command);
+                    input.value = '';
+                }
+            } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    event.target.value = terminalHistory[historyIndex];
+                }
+            } else if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                if (historyIndex < terminalHistory.length - 1) {
+                    historyIndex++;
+                    event.target.value = terminalHistory[historyIndex];
+                } else {
+                    historyIndex = terminalHistory.length;
+                    event.target.value = '';
+                }
+            }
+        }
+
+        function processKubectlCommand(command) {
+            const output = document.getElementById('terminalOutput');
+            
+            // Add command to output
+            const commandDiv = document.createElement('div');
+            commandDiv.innerHTML = `<span style="color: #4CAF50; font-weight: bold;">kubectl></span> ${command}`;
+            commandDiv.style.marginBottom = '8px';
+            output.appendChild(commandDiv);
+            
+            // Process the command
+            const result = executeKubectlCommand(command);
+            const resultDiv = document.createElement('div');
+            resultDiv.innerHTML = result;
+            resultDiv.style.marginBottom = '15px';
+            output.appendChild(resultDiv);
+            
+            // Auto scroll to bottom
+            output.scrollTop = output.scrollHeight;
+            
+            // Show notification badge on kubectl tab if not active
+            const kubectlTab = document.querySelector('.tab-header[onclick*="kubectl"]');
+            if (!kubectlTab.classList.contains('active')) {
+                showTabNotification('kubectl');
+            }
+        }
+
+        function clearTerminal() {
+            document.getElementById('terminalOutput').innerHTML = '';
+        }
+
+        function toggleTerminalFullscreen() {
+            const terminalTabs = document.querySelector('.terminal-tabs');
+            terminalTabs.classList.toggle('fullscreen');
+        }
+
+        // Logs Functions
+        function addLogEntry(message, level = 'info') {
+            const logsOutput = document.getElementById('logsOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            
+            const logDiv = document.createElement('div');
+            logDiv.className = 'log-entry';
+            logDiv.innerHTML = `
+                <span class="log-timestamp">[${timestamp}]</span>
+                <span class="log-level-${level}">[${level.toUpperCase()}]</span>
+                <span>${message}</span>
+            `;
+            
+            logsOutput.appendChild(logDiv);
+            
+            if (autoScroll) {
+                logsOutput.scrollTop = logsOutput.scrollHeight;
+            }
+            
+            // Show notification badge on logs tab if not active
+            const logsTab = document.querySelector('.tab-header[onclick*="logs"]');
+            if (!logsTab.classList.contains('active')) {
+                showTabNotification('logs');
+            }
+        }
+
+        function clearLogs() {
+            document.getElementById('logsOutput').innerHTML = '';
+        }
+
+        function toggleAutoScroll() {
+            autoScroll = !autoScroll;
+            const btn = document.getElementById('autoScrollBtn');
+            btn.textContent = autoScroll ? '📍 Auto-scroll: ON' : '📍 Auto-scroll: OFF';
+        }
+
+        function showTabNotification(tabName) {
+            const badge = document.getElementById(tabName + '-badge');
+            if (badge) {
+                badge.classList.add('show');
+                badge.textContent = '•';
+            }
+        }
+
+        function hideTabNotification(tabName) {
+            const badge = document.getElementById(tabName + '-badge');
+            if (badge) {
+                badge.classList.remove('show');
+            }
+        }
         
         function executeNextStep() {
             if (!isPlaying || isPaused || currentStep >= steps.length) {
@@ -1304,6 +1800,11 @@ spec:
                 <div class="data-flow">Validation: <span class="highlight-new">Parsing YAML manifest</span></div>
             `;
             apiState.classList.add('updated');
+            
+            // Add logs
+            addLogEntry('kubectl apply command received', 'info');
+            addLogEntry('API Server: Processing deployment request for webapp-deployment', 'info');
+            addLogEntry('Authentication: Token validation successful', 'success');
         }
         
         function executeStep2() {
@@ -1318,6 +1819,11 @@ spec:
                 <div class="data-flow">Admission: <span class="highlight-new">MutatingWebhook → ValidatingWebhook</span></div>
             `;
             apiState.classList.add('updated');
+            
+            // Add logs
+            addLogEntry('API Server: Validating deployment manifest schema', 'info');
+            addLogEntry('RBAC: User has permission to create deployments in namespace default', 'success');
+            addLogEntry('Admission Controllers: MutatingWebhook and ValidatingWebhook completed', 'success');
         }
         
         function executeStep3() {
@@ -1342,6 +1848,11 @@ spec:
                 <div class="data-flow">→ /registry/services/default/nginx-service</div>
             `;
             etcdState.classList.add('updated');
+            
+            // Add logs
+            addLogEntry('etcd: Storing deployment and service objects', 'info');
+            addLogEntry('etcd: Revision updated to 1002', 'info');
+            addLogEntry('etcd: Notifying watchers about new resources', 'success');
         }
         
         function executeStep4() {
@@ -1675,19 +2186,6 @@ spec:
             }
         }
         
-        function toggleTimeline() {
-            const timelineContent = document.querySelector('.timeline-content');
-            const toggleButton = document.querySelector('.timeline-toggle');
-            
-            if (timelineContent.classList.contains('collapsed')) {
-                timelineContent.classList.remove('collapsed');
-                toggleButton.textContent = '▼';
-            } else {
-                timelineContent.classList.add('collapsed');
-                toggleButton.textContent = '▶';
-            }
-        }
-        
         function toggleConfig() {
             const configContent = document.querySelector('.config-content');
             const toggleButton = document.querySelector('.config-toggle');
@@ -1698,6 +2196,38 @@ spec:
             } else {
                 configContent.classList.add('collapsed');
                 toggleButton.textContent = '▶';
+            }
+        }
+
+        // Live Logs Integration
+        function updateLiveLogs(step) {
+            const logsContent = document.getElementById('logsContent');
+            
+            const logMessages = {
+                1: '📋 Deployment manifest received...',
+                3: '💾 Deployment stored in etcd: webapp-deployment',
+                4: '🎮 Controller creating ReplicaSet...',
+                5: '📋 ReplicaSet webapp-deployment-abc123 created',
+                6: '🎯 Scheduler assigning pods to nodes...',
+                7: '🤖 Kubelet creating pod sandboxes...',
+                8: '⬇️ Pulling image nginx:1.21...\n✅ Image pull complete',
+                9: '🚀 Starting containers...\n📄 Container logs:\n' +
+                   '/docker-entrypoint.sh: Configuration complete\n' +
+                   '2024/01/30 12:34:56 [notice] nginx/1.21.6\n' +
+                   '2024/01/30 12:34:56 [notice] start worker processes',
+                10: '🌐 Service endpoints updated\n✅ Traffic routing active',
+                11: '🔍 DNS records registered\n✅ webapp-service.default.svc.cluster.local',
+                12: '🩺 Health checks passing\n✅ All pods ready and serving traffic'
+            };
+            
+            if (logMessages[step]) {
+                const logDiv = document.createElement('div');
+                logDiv.style.marginBottom = '10px';
+                logDiv.style.borderLeft = '3px solid #4CAF50';
+                logDiv.style.paddingLeft = '10px';
+                logDiv.innerHTML = `<span style="color: #666; font-size: 0.7em;">[${new Date().toLocaleTimeString()}]</span><br>${logMessages[step]}`;
+                logsContent.appendChild(logDiv);
+                logsContent.scrollTop = logsContent.scrollHeight;
             }
         }
         
@@ -1927,11 +2457,48 @@ spec:
             yamlContent.innerHTML = '<pre>' + yaml + '</pre>';
         }
         
-        // Initialize YAML manifest when page loads
+        // Initialize YAML manifest and new tabs when page loads
         document.addEventListener('DOMContentLoaded', function() {
             updateYAMLManifest();
             initializeKubectlShell();
+            initializeTabs();
         });
+
+        // Tab System Functions
+        function switchTab(tabName) {
+            // Remove active class from all headers and panels
+            document.querySelectorAll('.tab-header').forEach(header => header.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+            
+            // Add active class to selected tab
+            event.target.classList.add('active');
+            document.getElementById(tabName + '-panel').classList.add('active');
+            
+            // Focus on kubectl input when switching to kubectl tab
+            if (tabName === 'kubectl') {
+                setTimeout(() => {
+                    document.getElementById('shellInput').focus();
+                }, 100);
+            }
+        }
+
+        function initializeTabs() {
+            // Auto-switch to kubectl tab when deployment starts
+            const originalStartDeployment = startDeployment;
+            window.startDeployment = function() {
+                originalStartDeployment();
+                switchTab('kubectl');
+                updateTabIndicators();
+            };
+        }
+
+        function updateTabIndicators() {
+            // Add notification badges to tabs when relevant
+            const kubectlTab = document.querySelector('.tab-header:nth-child(2)');
+            if (currentStep >= 8) {
+                kubectlTab.innerHTML = '💻 kubectl <span style="background: #4CAF50; border-radius: 50%; padding: 2px 6px; font-size: 0.7em; margin-left: 5px;">!</span>';
+            }
+        }
 
         // kubectl Shell Implementation
         let shellHistory = [];
@@ -2276,13 +2843,13 @@ spec:
             if (shellHistory.length > 50) shellHistory.pop();
             historyIndex = -1;
             
-            const shellContent = document.getElementById('shellContent');
+            const kubectlContent = document.getElementById('kubectlContent');
             
             // Show command being executed
             const commandDiv = document.createElement('div');
             commandDiv.className = 'shell-output';
             commandDiv.innerHTML = `<span style="color: #4CAF50; font-weight: bold;">$ kubectl ${command}</span>`;
-            shellContent.appendChild(commandDiv);
+            kubectlContent.appendChild(commandDiv);
             
             // Parse command
             const parts = command.toLowerCase().split(' ');
@@ -2320,10 +2887,10 @@ spec:
             const outputDiv = document.createElement('div');
             outputDiv.className = 'shell-output';
             outputDiv.innerHTML = output;
-            shellContent.appendChild(outputDiv);
+            kubectlContent.appendChild(outputDiv);
             
             // Scroll to bottom
-            shellContent.scrollTop = shellContent.scrollHeight;
+            kubectlContent.scrollTop = kubectlContent.scrollHeight;
         }
 
         function handleGetCommand(resource, resourceName, flags, clusterData) {
@@ -3014,6 +3581,297 @@ Events:            <none>
                     <span>${currentStep >= 9 ? '10.244.1.10:80,10.244.1.12:80,10.244.2.11:80' : '<none>'}</span>
                     <span>${currentStep >= 9 ? '2m' : '30s'}</span>
                 </div>
+            </div>`;
+        }
+
+        // Main kubectl command processor
+        function executeKubectlCommand(command) {
+            const parts = command.toLowerCase().split(/\s+/);
+            
+            if (parts.length === 0) {
+                return '<div class="error-output">Error: empty command</div>';
+            }
+
+            // Remove 'kubectl' prefix if present
+            if (parts[0] === 'kubectl') {
+                parts.shift();
+            }
+
+            if (parts.length === 0 || parts[0] === 'help' || parts[0] === '-h' || parts[0] === '--help') {
+                return getHelpOutput();
+            }
+
+            const action = parts[0];
+            
+            switch (action) {
+                case 'get':
+                    return handleGetCommand(parts.slice(1));
+                case 'describe':
+                    return handleDescribeCommand(parts.slice(1));
+                case 'logs':
+                    return handleLogsCommand(parts.slice(1));
+                case 'api-resources':
+                    return getApiResourcesOutput();
+                case 'version':
+                    return getVersionOutput();
+                case 'cluster-info':
+                    return getClusterInfoOutput();
+                case 'config':
+                    return handleConfigCommand(parts.slice(1));
+                default:
+                    return `<div class="error-output">Error: unknown command "${action}". Try "help" for available commands.</div>`;
+            }
+        }
+
+        function handleGetCommand(parts) {
+            if (parts.length === 0) {
+                return '<div class="error-output">Error: You must specify the type of resource to get.</div>';
+            }
+
+            const resource = parts[0];
+            const options = parts.slice(1);
+            let outputJson = options.includes('-o') && options.includes('json');
+            let outputYaml = options.includes('-o') && options.includes('yaml');
+            let wide = options.includes('-o') && options.includes('wide');
+
+            // Map common shortcuts
+            const resourceMap = {
+                'po': 'pods',
+                'pods': 'pods',
+                'svc': 'services', 
+                'services': 'services',
+                'deploy': 'deployments',
+                'deployments': 'deployments',
+                'rs': 'replicasets',
+                'replicasets': 'replicasets',
+                'cm': 'configmaps',
+                'configmaps': 'configmaps',
+                'secrets': 'secrets',
+                'ns': 'namespaces',
+                'namespaces': 'namespaces',
+                'nodes': 'nodes',
+                'pv': 'persistentvolumes',
+                'persistentvolumes': 'persistentvolumes',
+                'pvc': 'persistentvolumeclaims',
+                'persistentvolumeclaims': 'persistentvolumeclaims',
+                'endpoints': 'endpoints',
+                'ep': 'endpoints',
+                'events': 'events',
+                'ingress': 'ingress',
+                'ing': 'ingress'
+            };
+
+            const mappedResource = resourceMap[resource] || resource;
+
+            switch (mappedResource) {
+                case 'pods':
+                    return getPodsTable(outputJson, outputYaml, wide);
+                case 'services':
+                    return getServicesTable();
+                case 'deployments':
+                    return getDeploymentsTable();
+                case 'replicasets':
+                    return getReplicaSetsTable();
+                case 'configmaps':
+                    return getConfigMapsTable();
+                case 'secrets':
+                    return getSecretsTable();
+                case 'namespaces':
+                    return getNamespacesTable();
+                case 'nodes':
+                    return getNodesTable();
+                case 'persistentvolumes':
+                    return getPersistentVolumesTable();
+                case 'persistentvolumeclaims':
+                    return getPersistentVolumeClaimsTable();
+                case 'endpoints':
+                    return getEndpointsTable();
+                default:
+                    return `<div class="error-output">Error: the server doesn't have a resource type "${resource}"</div>`;
+            }
+        }
+
+        function handleDescribeCommand(parts) {
+            if (parts.length === 0) {
+                return '<div class="error-output">Error: You must specify the type of resource to describe.</div>';
+            }
+
+            const resource = parts[0];
+            const name = parts[1];
+
+            if (resource === 'pod' || resource === 'pods' || resource === 'po') {
+                if (!name) {
+                    return '<div class="error-output">Error: You must specify pod name</div>';
+                }
+                const pods = getClusterPods();
+                const pod = pods.find(p => p.name === name);
+                if (!pod) {
+                    return `<div class="error-output">Error: pods "${name}" not found</div>`;
+                }
+                return getPodDescription(pod);
+            }
+
+            return `<div class="error-output">Error: describe ${resource} not implemented yet</div>`;
+        }
+
+        function handleLogsCommand(parts) {
+            if (parts.length === 0) {
+                return '<div class="error-output">Error: You must specify pod name</div>';
+            }
+
+            const podName = parts[0];
+            const pods = getClusterPods();
+            const pod = pods.find(p => p.name === podName);
+            
+            if (!pod) {
+                return `<div class="error-output">Error: pods "${podName}" not found</div>`;
+            }
+
+            return getPodLogs(pod);
+        }
+
+        function handleConfigCommand(parts) {
+            if (parts.length === 0 || parts[0] === 'view') {
+                return getKubeconfigOutput();
+            }
+            return '<div class="error-output">Error: config subcommand not supported</div>';
+        }
+
+        function getHelpOutput() {
+            return `<div class="kubectl-output">
+<div style="color: #4CAF50; font-weight: bold; margin-bottom: 10px;">🔧 kubectl - Kubernetes command line interface</div>
+
+<div style="color: #FFC107; font-weight: bold;">Basic Commands:</div>
+<div style="margin-left: 15px; margin-bottom: 10px;">
+  get         Display one or many resources
+  describe    Show detailed information about a resource
+  logs        Print container logs
+  api-resources    Print supported API resources
+  version     Print client and server version
+  cluster-info Display cluster info
+  config      Modify kubeconfig files
+</div>
+
+<div style="color: #FFC107; font-weight: bold;">Resource shortcuts:</div>
+<div style="margin-left: 15px; font-family: monospace; font-size: 12px;">
+  po = pods              svc = services         deploy = deployments
+  rs = replicasets       cm = configmaps        ns = namespaces
+  pv = persistentvolumes pvc = persistentvolumeclaims
+  ep = endpoints         ing = ingress
+</div>
+
+<div style="color: #FFC107; font-weight: bold; margin-top: 10px;">Examples:</div>
+<div style="margin-left: 15px; font-family: monospace; font-size: 12px; color: #ccc;">
+  kubectl get pods
+  kubectl get svc
+  kubectl describe pod webapp-deployment-abc123
+  kubectl logs webapp-deployment-abc123
+  kubectl get pods -o yaml
+</div>
+            </div>`;
+        }
+
+        function getVersionOutput() {
+            return `<div class="kubectl-output">
+Client Version: version.Info{Major:"1", Minor:"28", GitVersion:"v1.28.2"}
+Kustomize Version: v5.0.4-0.20230601165947-6ce0bf390ce3
+Server Version: version.Info{Major:"1", Minor:"28", GitVersion:"v1.28.2"}
+            </div>`;
+        }
+
+        function getClusterInfoOutput() {
+            return `<div class="kubectl-output">
+<div style="color: #4CAF50;">Kubernetes control plane</div> is running at <span style="color: #2196F3;">https://192.168.1.100:6443</span>
+<div style="color: #4CAF50;">CoreDNS</div> is running at <span style="color: #2196F3;">https://192.168.1.100:6443/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy</span>
+
+To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
+            </div>`;
+        }
+
+        function getKubeconfigOutput() {
+            return `<div class="yaml-output">apiVersion: v1
+clusters:
+- cluster:
+    server: https://192.168.1.100:6443
+  name: kubernetes
+contexts:
+- context:
+    cluster: kubernetes
+    user: kubernetes-admin
+  name: kubernetes-admin@kubernetes
+current-context: kubernetes-admin@kubernetes
+kind: Config
+users:
+- name: kubernetes-admin</div>`;
+        }
+
+        function getPodDescription(pod) {
+            return `<div class="kubectl-output">
+Name:         ${pod.name}
+Namespace:    default
+Priority:     0
+Node:         ${pod.node}
+Start Time:   ${new Date(Date.now() - 120000).toISOString()}
+Labels:       app=webapp
+              pod-template-hash=abc123
+Status:       ${pod.status}
+IP:           ${pod.ip}
+Controlled By:  ReplicaSet/webapp-deployment-abc123
+
+Containers:
+  webapp:
+    Container ID:   containerd://abc123def456
+    Image:          nginx:1.21
+    Image ID:       sha256:f6d0b4767a6c
+    Port:           80/TCP
+    Host Port:      0/TCP
+    State:          Running
+      Started:      ${new Date(Date.now() - 60000).toISOString()}
+    Ready:          ${pod.ready === '1/1' ? 'True' : 'False'}
+    Restart Count:  ${pod.restarts}
+    Limits:
+      cpu:     100m
+      memory:  128Mi
+    Requests:
+      cpu:      50m
+      memory:   64Mi
+    Environment:  <none>
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-123 (ro)
+
+Conditions:
+  Type              Status
+  Initialized       True
+  Ready             ${pod.ready === '1/1' ? 'True' : 'False'}
+  ContainersReady   ${pod.ready === '1/1' ? 'True' : 'False'}
+  PodScheduled      True
+
+Events:
+  Type    Reason     Age   From               Message
+  ----    ------     ----  ----               -------
+  Normal  Scheduled  2m    default-scheduler  Successfully assigned default/${pod.name} to ${pod.node}
+  Normal  Pulling    2m    kubelet            Pulling image "nginx:1.21"
+  Normal  Pulled     2m    kubelet            Successfully pulled image "nginx:1.21"
+  Normal  Created    2m    kubelet            Created container webapp
+  Normal  Started    2m    kubelet            Started container webapp
+            </div>`;
+        }
+
+        function getPodLogs(pod) {
+            const logs = [
+                '2024/01/15 10:30:22 [notice] 1#1: using the "epoll" event method',
+                '2024/01/15 10:30:22 [notice] 1#1: nginx/1.21.6',
+                '2024/01/15 10:30:22 [notice] 1#1: OS: Linux 5.4.0-74-generic',
+                '2024/01/15 10:30:22 [notice] 1#1: getrlimit(RLIMIT_NOFILE): 1048576:1048576',
+                '2024/01/15 10:30:22 [notice] 1#1: start worker processes',
+                '2024/01/15 10:30:22 [notice] 1#1: start worker process 28',
+                '2024/01/15 10:30:22 [notice] 1#1: start worker process 29',
+                `${new Date().toISOString()} - ${pod.name} - Container started successfully`,
+                `${new Date().toISOString()} - ${pod.name} - Ready to accept connections on port 80`
+            ];
+            
+            return `<div class="kubectl-output" style="font-family: monospace; font-size: 12px; line-height: 1.3;">
+${logs.map(log => `<div style="margin-bottom: 2px;">${log}</div>`).join('')}
             </div>`;
         }
 
