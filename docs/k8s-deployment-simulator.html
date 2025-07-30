@@ -23,7 +23,7 @@
             max-width: 1800px;
             margin: 0 auto;
             padding: 20px;
-            padding-right: calc(min(420px, 32vw) + 40px); /* Espace pour les onglets mais limité */
+            padding-right: calc(min(380px, 28vw) + 30px); /* Espace pour les onglets mais limité */
         }
         
         h1 {
@@ -666,11 +666,11 @@
         /* Integrated Terminal Tabs */
         .terminal-tabs {
             position: fixed;
-            top: 80px;
-            right: 20px;
-            width: min(420px, 32vw);
-            height: 65vh;
-            max-height: 500px;
+            top: 120px;
+            right: 10px;
+            width: min(380px, 28vw);
+            height: 60vh;
+            max-height: 450px;
             background: rgba(10, 10, 10, 0.95);
             border: 2px solid rgba(76, 175, 80, 0.3);
             border-radius: 15px;
@@ -2783,8 +2783,29 @@ spec:
             console.log('getClusterData called, currentStep:', currentStep);
             console.log('podsCreated:', podsCreated, 'podsRunning:', podsRunning);
             
-            const clusterData = {
-                pods: podsCreated ? [
+            // Toujours avoir des pods système + pods de déploiement si créés
+            const systemPods = [
+                {
+                    name: 'coredns-558bd4d5db-abc12',
+                    ready: '1/1',
+                    status: 'Running',
+                    restarts: '0',
+                    age: '30d',
+                    ip: '10.244.0.2',
+                    node: 'control-plane'
+                },
+                {
+                    name: 'coredns-558bd4d5db-def34',
+                    ready: '1/1',
+                    status: 'Running',
+                    restarts: '0',
+                    age: '30d',
+                    ip: '10.244.0.3',
+                    node: 'control-plane'
+                }
+            ];
+            
+            const deploymentPods = podsCreated ? [
                     {
                         name: 'webapp-deployment-abc123-pod1',
                         ready: podsRunning ? '1/1' : '0/1',
@@ -2812,27 +2833,10 @@ spec:
                         ip: podsRunning ? '10.244.1.12' : '<none>',
                         node: currentStep >= 6 ? 'node-1' : '<none>'
                     }
-                ] : [
-                    // Pods par défaut même sans déploiement
-                    {
-                        name: 'coredns-558bd4d5db-abc12',
-                        ready: '1/1',
-                        status: 'Running',
-                        restarts: '0',
-                        age: '30d',
-                        ip: '10.244.0.2',
-                        node: 'control-plane'
-                    },
-                    {
-                        name: 'coredns-558bd4d5db-def34',
-                        ready: '1/1',
-                        status: 'Running',
-                        restarts: '0',
-                        age: '30d',
-                        ip: '10.244.0.3',
-                        node: 'control-plane'
-                    }
-                ],
+                ] : [];
+            
+            const clusterData = {
+                pods: [...systemPods, ...deploymentPods],
                 services: [
                     {
                         name: 'kubernetes',
