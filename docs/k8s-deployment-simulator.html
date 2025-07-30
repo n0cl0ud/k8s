@@ -704,6 +704,15 @@
             background: rgba(76, 175, 80, 0.6);
         }
         
+        .resize-handle-left {
+            top: 0;
+            left: -5px;
+            width: 10px;
+            height: 100%;
+            cursor: ew-resize;
+            border-radius: 15px 0 0 15px;
+        }
+        
         .resize-handle-right {
             top: 0;
             right: -5px;
@@ -753,6 +762,7 @@
             background: rgba(255, 255, 255, 0.1);
         }
         
+        .resize-handle-left::after,
         .resize-handle-right::after {
             top: 50%;
             left: 50%;
@@ -1653,6 +1663,7 @@ spec:
             </div>
             
             <!-- Resize handles -->
+            <div class="resize-handle resize-handle-left"></div>
             <div class="resize-handle resize-handle-right"></div>
             <div class="resize-handle resize-handle-bottom"></div>
             <div class="resize-handle resize-handle-corner"></div>
@@ -2722,6 +2733,7 @@ spec:
         // Resizable functionality
         function initializeResizableHandles() {
             const terminalTabs = document.querySelector('.terminal-tabs');
+            const leftHandle = terminalTabs.querySelector('.resize-handle-left');
             const rightHandle = terminalTabs.querySelector('.resize-handle-right');
             const bottomHandle = terminalTabs.querySelector('.resize-handle-bottom'); 
             const cornerHandle = terminalTabs.querySelector('.resize-handle-corner');
@@ -2751,7 +2763,7 @@ spec:
                 
                 // Prevent text selection while resizing
                 document.body.style.userSelect = 'none';
-                document.body.style.cursor = type === 'width' ? 'ew-resize' : 
+                document.body.style.cursor = (type === 'width-left' || type === 'width-right') ? 'ew-resize' : 
                                            type === 'height' ? 'ns-resize' : 'nw-resize';
                 
                 e.preventDefault();
@@ -2763,8 +2775,17 @@ spec:
                 const deltaX = e.clientX - startX;
                 const deltaY = e.clientY - startY;
                 
-                if (resizeType === 'width' || resizeType === 'both') {
-                    const newWidth = Math.max(300, Math.min(window.innerWidth - 20, startWidth - deltaX));
+                if (resizeType === 'width-left') {
+                    // Poignée gauche: drag vers la gauche = augmenter largeur, drag vers la droite = réduire largeur
+                    const newWidth = Math.max(300, Math.min(window.innerWidth - 50, startWidth - deltaX));
+                    terminalTabs.style.width = newWidth + 'px';
+                } else if (resizeType === 'width-right') {
+                    // Poignée droite: drag vers la droite = réduire largeur, drag vers la gauche = augmenter largeur
+                    const newWidth = Math.max(300, Math.min(window.innerWidth - 50, startWidth - deltaX));
+                    terminalTabs.style.width = newWidth + 'px';
+                } else if (resizeType === 'both') {
+                    // Corner handle - utilise la logique de la poignée droite pour la largeur
+                    const newWidth = Math.max(300, Math.min(window.innerWidth - 50, startWidth - deltaX));
                     terminalTabs.style.width = newWidth + 'px';
                 }
                 
@@ -2790,7 +2811,8 @@ spec:
             }
             
             // Event listeners for resize handles
-            rightHandle.addEventListener('mousedown', (e) => startResize(e, 'width'));
+            leftHandle.addEventListener('mousedown', (e) => startResize(e, 'width-left'));
+            rightHandle.addEventListener('mousedown', (e) => startResize(e, 'width-right'));
             bottomHandle.addEventListener('mousedown', (e) => startResize(e, 'height'));
             cornerHandle.addEventListener('mousedown', (e) => startResize(e, 'both'));
         }
