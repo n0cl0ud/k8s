@@ -601,6 +601,192 @@
                 font-size: 0.75em;
             }
         }
+
+        /* kubectl Shell Terminal Styles */
+        .kubectl-shell {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 350px;
+            background: rgba(10, 10, 10, 0.98);
+            border-top: 3px solid #4CAF50;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            transform: translateY(320px);
+            backdrop-filter: blur(10px);
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+        }
+
+        .kubectl-shell.open {
+            transform: translateY(0);
+        }
+
+        .shell-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 15px;
+            background: rgba(76, 175, 80, 0.1);
+            border-bottom: 1px solid rgba(76, 175, 80, 0.3);
+            cursor: pointer;
+        }
+
+        .shell-title {
+            color: #4CAF50;
+            font-weight: bold;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .shell-toggle {
+            background: none;
+            border: none;
+            color: #4CAF50;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .shell-toggle:hover {
+            transform: rotate(180deg);
+        }
+
+        .shell-content {
+            height: calc(100% - 40px);
+            overflow-y: auto;
+            padding: 15px;
+            background: #0a0a0a;
+        }
+
+        .shell-output {
+            color: #e0e0e0;
+            font-size: 0.85em;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin-bottom: 10px;
+        }
+
+        .shell-prompt {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+            position: sticky;
+            bottom: 0;
+            background: #0a0a0a;
+            padding: 5px 0;
+        }
+
+        .prompt-symbol {
+            color: #4CAF50;
+            margin-right: 8px;
+            font-weight: bold;
+        }
+
+        .shell-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #ffffff;
+            font-family: inherit;
+            font-size: 0.85em;
+            outline: none;
+        }
+
+        .shell-input::placeholder {
+            color: #666;
+        }
+
+        .kubectl-output {
+            margin: 5px 0;
+        }
+
+        .kubectl-header {
+            color: #4CAF50;
+            font-weight: bold;
+            border-bottom: 1px solid #333;
+            padding-bottom: 2px;
+            margin-bottom: 5px;
+        }
+
+        .kubectl-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 10px;
+            padding: 2px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .kubectl-row:nth-child(even) {
+            background: rgba(255,255,255,0.02);
+        }
+
+        .status-running { color: #4CAF50; }
+        .status-pending { color: #FF9800; }
+        .status-error { color: #F44336; }
+        .status-terminating { color: #FF5722; }
+
+        .resource-name { color: #64B5F6; }
+        .namespace-name { color: #FFB74D; }
+
+        .autocomplete-suggestions {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            right: 0;
+            background: rgba(20, 20, 20, 0.95);
+            border: 1px solid #4CAF50;
+            border-radius: 5px;
+            max-height: 150px;
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .autocomplete-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 0.8em;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background: rgba(76, 175, 80, 0.2);
+        }
+
+        .command-history {
+            color: #888;
+            font-style: italic;
+        }
+
+        .yaml-output {
+            color: #81C784;
+            background: rgba(255,255,255,0.02);
+            padding: 10px;
+            border-radius: 5px;
+            margin: 5px 0;
+            border-left: 3px solid #4CAF50;
+        }
+
+        .json-output {
+            color: #FFD54F;
+            background: rgba(255,255,255,0.02);
+            padding: 10px;
+            border-radius: 5px;
+            margin: 5px 0;
+            border-left: 3px solid #FFC107;
+        }
+
+        .error-output {
+            color: #FF5252;
+            background: rgba(244, 67, 54, 0.1);
+            padding: 8px;
+            border-radius: 5px;
+            border-left: 3px solid #F44336;
+        }
     </style>
 </head>
 <body>
@@ -728,6 +914,7 @@ spec:
             <button onclick="pauseDeployment()" id="pauseBtn" disabled>⏸️ Pause</button>
             <button onclick="resetSimulation()" id="resetBtn">🔄 Reset</button>
             <button onclick="toggleSpeed()" id="speedBtn">⚡ Speed: 1x</button>
+            <button onclick="toggleKubectlShell()" id="shellBtn">💻 kubectl Terminal</button>
         </div>
         
         <div class="progress-bar">
@@ -906,6 +1093,30 @@ spec:
             <strong>12. Health Checks</strong>
             <div class="step-detail">Readiness probes successful</div>
         </div>
+        </div>
+    </div>
+
+    <!-- kubectl Interactive Shell -->
+    <div class="kubectl-shell" id="kubectlShell">
+        <div class="shell-header" onclick="toggleKubectlShell()">
+            <div class="shell-title">
+                <span>💻</span>
+                <span>kubectl Interactive Terminal</span>
+                <span style="font-size: 0.7em; opacity: 0.7;">(Tab for completion, ↑↓ for history)</span>
+            </div>
+            <button class="shell-toggle">▼</button>
+        </div>
+        <div class="shell-content" id="shellContent">
+            <div class="shell-output">
+                <div style="color: #4CAF50;">Welcome to kubectl interactive terminal!</div>
+                <div style="color: #888; font-size: 0.8em;">Try: get pods, get services, describe pod webapp-deployment-xxx, logs webapp-deployment-xxx</div>
+                <div style="color: #888; font-size: 0.8em;">Advanced: get configmaps, get secrets, get crd, get events, api-resources</div>
+            </div>
+            <div class="shell-prompt">
+                <span class="prompt-symbol">$ kubectl</span>
+                <input type="text" class="shell-input" id="shellInput" placeholder="get pods" autocomplete="off">
+                <div class="autocomplete-suggestions" id="autocompleteSuggestions" style="display: none;"></div>
+            </div>
         </div>
     </div>
 
@@ -1717,7 +1928,965 @@ spec:
         // Initialize YAML manifest when page loads
         document.addEventListener('DOMContentLoaded', function() {
             updateYAMLManifest();
+            initializeKubectlShell();
         });
+
+        // kubectl Shell Implementation
+        let shellHistory = [];
+        let historyIndex = -1;
+        let shellCommandIndex = 0;
+
+        // Simulate cluster data based on current simulation state
+        function getClusterData() {
+            const podsRunning = currentStep >= 8;
+            const serviceActive = currentStep >= 9;
+            
+            return {
+                pods: [
+                    {
+                        name: 'webapp-deployment-abc123-pod1',
+                        ready: podsRunning ? '1/1' : '0/1',
+                        status: podsRunning ? 'Running' : 'Pending',
+                        restarts: '0',
+                        age: podsRunning ? '2m' : '30s',
+                        ip: podsRunning ? '10.244.1.10' : '<none>',
+                        node: currentStep >= 6 ? 'node-1' : '<none>'
+                    },
+                    {
+                        name: 'webapp-deployment-abc123-pod2',
+                        ready: podsRunning ? '1/1' : '0/1',
+                        status: podsRunning ? 'Running' : 'Pending',
+                        restarts: '0',
+                        age: podsRunning ? '2m' : '30s',
+                        ip: podsRunning ? '10.244.2.11' : '<none>',
+                        node: currentStep >= 6 ? 'node-2' : '<none>'
+                    },
+                    {
+                        name: 'webapp-deployment-abc123-pod3',
+                        ready: podsRunning ? '1/1' : '0/1',
+                        status: podsRunning ? 'Running' : 'Pending',
+                        restarts: '0',
+                        age: podsRunning ? '2m' : '30s',
+                        ip: podsRunning ? '10.244.1.12' : '<none>',
+                        node: currentStep >= 6 ? 'node-1' : '<none>'
+                    }
+                ],
+                services: [
+                    {
+                        name: 'kubernetes',
+                        type: 'ClusterIP',
+                        clusterIp: '10.96.0.1',
+                        externalIp: '<none>',
+                        ports: '443/TCP',
+                        age: '30d'
+                    },
+                    {
+                        name: 'webapp-service',
+                        type: 'ClusterIP',
+                        clusterIp: serviceActive ? '10.96.123.45' : '<pending>',
+                        externalIp: '<none>',
+                        ports: serviceActive ? '80/TCP' : '<none>',
+                        age: serviceActive ? '2m' : '30s'
+                    }
+                ],
+                deployments: [
+                    {
+                        name: 'webapp-deployment',
+                        ready: podsRunning ? '3/3' : '0/3',
+                        upToDate: currentStep >= 4 ? '3' : '0',
+                        available: podsRunning ? '3' : '0',
+                        age: currentStep >= 3 ? '2m' : '30s'
+                    }
+                ],
+                replicasets: [
+                    {
+                        name: 'webapp-deployment-abc123',
+                        desired: currentStep >= 4 ? '3' : '0',
+                        current: podsRunning ? '3' : currentStep >= 5 ? '3' : '0',
+                        ready: podsRunning ? '3' : '0',
+                        age: currentStep >= 4 ? '2m' : '0s'
+                    }
+                ],
+                configmaps: [
+                    {
+                        name: 'kube-root-ca.crt',
+                        data: '1',
+                        age: '30d'
+                    },
+                    {
+                        name: 'coredns',
+                        data: '2',
+                        age: '30d'
+                    }
+                ],
+                secrets: [
+                    {
+                        name: 'default-token-xyz123',
+                        type: 'kubernetes.io/service-account-token',
+                        data: '3',
+                        age: '30d'
+                    }
+                ],
+                events: [
+                    currentStep >= 1 ? {
+                        lastSeen: '2m',
+                        firstSeen: '2m',
+                        count: '1',
+                        name: 'webapp-deployment.created',
+                        kind: 'Deployment',
+                        subobject: '',
+                        type: 'Normal',
+                        reason: 'DeploymentCreated',
+                        source: 'deployment-controller',
+                        message: 'Created deployment webapp-deployment'
+                    } : null,
+                    currentStep >= 4 ? {
+                        lastSeen: '2m',
+                        firstSeen: '2m',
+                        count: '1',
+                        name: 'webapp-deployment-abc123.created',
+                        kind: 'ReplicaSet',
+                        subobject: '',
+                        type: 'Normal',
+                        reason: 'ReplicaSetCreated',
+                        source: 'deployment-controller',
+                        message: 'Created ReplicaSet webapp-deployment-abc123'
+                    } : null,
+                    currentStep >= 6 ? {
+                        lastSeen: '2m',
+                        firstSeen: '2m',
+                        count: '3',
+                        name: 'webapp-deployment-abc123-pod1.scheduled',
+                        kind: 'Pod',
+                        subobject: '',
+                        type: 'Normal',
+                        reason: 'Scheduled',
+                        source: 'default-scheduler',
+                        message: 'Successfully assigned default/webapp-deployment-abc123-pod1 to node-1'
+                    } : null,
+                    currentStep >= 8 ? {
+                        lastSeen: '1m',
+                        firstSeen: '1m',
+                        count: '3',
+                        name: 'webapp-deployment-abc123-pod1.pulled',
+                        kind: 'Pod',
+                        subobject: 'spec.containers{webapp}',
+                        type: 'Normal',
+                        reason: 'Pulled',
+                        source: 'kubelet',
+                        message: 'Container image "nginx:1.21" already present on machine'
+                    } : null
+                ].filter(Boolean),
+                nodes: [
+                    {
+                        name: 'node-1',
+                        status: 'Ready',
+                        roles: '<none>',
+                        age: '30d',
+                        version: 'v1.28.0'
+                    },
+                    {
+                        name: 'node-2',
+                        status: 'Ready',
+                        roles: '<none>',
+                        age: '30d',
+                        version: 'v1.28.0'
+                    },
+                    {
+                        name: 'control-plane',
+                        status: 'Ready',
+                        roles: 'control-plane',
+                        age: '30d',
+                        version: 'v1.28.0'
+                    }
+                ],
+                crds: [
+                    {
+                        name: 'ciliumidentities.cilium.io',
+                        created: '2024-01-15T10:30:00Z',
+                        apiVersion: 'v2',
+                        scope: 'Cluster'
+                    },
+                    {
+                        name: 'ciliumnetworkpolicies.cilium.io',
+                        created: '2024-01-15T10:30:00Z',
+                        apiVersion: 'v2',
+                        scope: 'Namespaced'
+                    }
+                ]
+            };
+        }
+
+        function toggleKubectlShell() {
+            const shell = document.getElementById('kubectlShell');
+            const toggle = shell.querySelector('.shell-toggle');
+            
+            if (shell.classList.contains('open')) {
+                shell.classList.remove('open');
+                toggle.textContent = '▼';
+            } else {
+                shell.classList.add('open');
+                toggle.textContent = '▲';
+                // Focus on input when opening
+                setTimeout(() => {
+                    document.getElementById('shellInput').focus();
+                }, 300);
+            }
+        }
+
+        function initializeKubectlShell() {
+            const shellInput = document.getElementById('shellInput');
+            const autocompleteSuggestions = document.getElementById('autocompleteSuggestions');
+            
+            // Commands and resources for autocomplete
+            const commands = ['get', 'describe', 'logs', 'api-resources'];
+            const resources = ['pods', 'services', 'deployments', 'replicasets', 'configmaps', 'secrets', 'nodes', 'events', 'crd', 'all'];
+            const flags = ['-o yaml', '-o json', '--watch', '-w', '--no-headers'];
+            
+            let selectedSuggestion = -1;
+            
+            shellInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    executeKubectlCommand(this.value.trim());
+                    this.value = '';
+                    hideSuggestions();
+                    e.preventDefault();
+                } else if (e.key === 'Tab') {
+                    e.preventDefault();
+                    // Handle tab completion
+                    const suggestions = getSuggestions(this.value);
+                    if (suggestions.length === 1) {
+                        this.value = suggestions[0];
+                        hideSuggestions();
+                    } else if (suggestions.length > 1) {
+                        showSuggestions(suggestions);
+                    }
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (autocompleteSuggestions.style.display === 'block') {
+                        navigateSuggestions(-1);
+                    } else {
+                        navigateHistory(-1);
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (autocompleteSuggestions.style.display === 'block') {
+                        navigateSuggestions(1);
+                    } else {
+                        navigateHistory(1);
+                    }
+                } else if (e.key === 'Escape') {
+                    hideSuggestions();
+                }
+            });
+            
+            shellInput.addEventListener('input', function() {
+                const suggestions = getSuggestions(this.value);
+                if (suggestions.length > 0 && this.value.length > 0) {
+                    showSuggestions(suggestions);
+                } else {
+                    hideSuggestions();
+                }
+            });
+            
+            function getSuggestions(input) {
+                const words = input.toLowerCase().split(' ');
+                const lastWord = words[words.length - 1];
+                
+                if (words.length === 1) {
+                    return commands.filter(cmd => cmd.startsWith(lastWord));
+                } else if (words.length === 2 && words[0] === 'get') {
+                    return resources.filter(res => res.startsWith(lastWord));
+                } else if (words.length === 2 && (words[0] === 'describe' || words[0] === 'logs')) {
+                    return resources.filter(res => res.startsWith(lastWord) && res !== 'all');
+                } else if (lastWord.startsWith('-')) {
+                    return flags.filter(flag => flag.startsWith(lastWord));
+                }
+                
+                return [];
+            }
+            
+            function showSuggestions(suggestions) {
+                autocompleteSuggestions.innerHTML = '';
+                suggestions.forEach((suggestion, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'autocomplete-item';
+                    item.textContent = suggestion;
+                    item.addEventListener('click', () => {
+                        const words = shellInput.value.split(' ');
+                        words[words.length - 1] = suggestion;
+                        shellInput.value = words.join(' ') + ' ';
+                        hideSuggestions();
+                        shellInput.focus();
+                    });
+                    autocompleteSuggestions.appendChild(item);
+                });
+                autocompleteSuggestions.style.display = 'block';
+                selectedSuggestion = -1;
+            }
+            
+            function hideSuggestions() {
+                autocompleteSuggestions.style.display = 'none';
+                selectedSuggestion = -1;
+            }
+            
+            function navigateSuggestions(direction) {
+                const items = autocompleteSuggestions.querySelectorAll('.autocomplete-item');
+                if (items.length === 0) return;
+                
+                if (selectedSuggestion >= 0) {
+                    items[selectedSuggestion].classList.remove('selected');
+                }
+                
+                selectedSuggestion += direction;
+                if (selectedSuggestion < 0) selectedSuggestion = items.length - 1;
+                if (selectedSuggestion >= items.length) selectedSuggestion = 0;
+                
+                items[selectedSuggestion].classList.add('selected');
+                
+                // Apply suggestion to input
+                const words = shellInput.value.split(' ');
+                words[words.length - 1] = items[selectedSuggestion].textContent;
+                shellInput.value = words.join(' ');
+            }
+            
+            function navigateHistory(direction) {
+                if (shellHistory.length === 0) return;
+                
+                historyIndex += direction;
+                if (historyIndex < 0) historyIndex = 0;
+                if (historyIndex >= shellHistory.length) historyIndex = shellHistory.length - 1;
+                
+                shellInput.value = shellHistory[historyIndex];
+            }
+        }
+
+        function executeKubectlCommand(command) {
+            if (!command) return;
+            
+            // Add to history
+            shellHistory.unshift(command);
+            if (shellHistory.length > 50) shellHistory.pop();
+            historyIndex = -1;
+            
+            const shellContent = document.getElementById('shellContent');
+            
+            // Show command being executed
+            const commandDiv = document.createElement('div');
+            commandDiv.className = 'shell-output';
+            commandDiv.innerHTML = `<span style="color: #4CAF50; font-weight: bold;">$ kubectl ${command}</span>`;
+            shellContent.appendChild(commandDiv);
+            
+            // Parse command
+            const parts = command.toLowerCase().split(' ');
+            const cmd = parts[0];
+            const resource = parts[1];
+            const resourceName = parts[2];
+            const flags = parts.slice(2).filter(p => p.startsWith('-'));
+            
+            let output = '';
+            
+            try {
+                const clusterData = getClusterData();
+                
+                switch (cmd) {
+                    case 'get':
+                        output = handleGetCommand(resource, resourceName, flags, clusterData);
+                        break;
+                    case 'describe':
+                        output = handleDescribeCommand(resource, resourceName, clusterData);
+                        break;
+                    case 'logs':
+                        output = handleLogsCommand(resource, clusterData);
+                        break;
+                    case 'api-resources':
+                        output = handleApiResourcesCommand();
+                        break;
+                    default:
+                        output = `<div class="error-output">Error: unknown command "${cmd}"</div>`;
+                }
+            } catch (error) {
+                output = `<div class="error-output">Error: ${error.message}</div>`;
+            }
+            
+            // Show output
+            const outputDiv = document.createElement('div');
+            outputDiv.className = 'shell-output';
+            outputDiv.innerHTML = output;
+            shellContent.appendChild(outputDiv);
+            
+            // Scroll to bottom
+            shellContent.scrollTop = shellContent.scrollHeight;
+        }
+
+        function handleGetCommand(resource, resourceName, flags, clusterData) {
+            const outputYaml = flags.includes('-o') && (flags.includes('yaml') || flags.includes('json'));
+            const outputJson = flags.includes('-o') && flags.includes('json');
+            
+            switch (resource) {
+                case 'pods':
+                case 'pod':
+                case 'po':
+                    if (resourceName && resourceName !== '-o') {
+                        const pod = clusterData.pods.find(p => p.name.includes(resourceName) || p.name === resourceName);
+                        if (!pod) {
+                            return `<div class="error-output">Error from server (NotFound): pods "${resourceName}" not found</div>`;
+                        }
+                        if (outputYaml) {
+                            return outputJson ? getPodJson(pod) : getPodYaml(pod);
+                        }
+                        return getSinglePodTable(pod);
+                    }
+                    return outputYaml ? (outputJson ? getPodsJson(clusterData.pods) : getPodsYaml(clusterData.pods)) : getPodsTable(clusterData.pods);
+                    
+                case 'services':
+                case 'service':
+                case 'svc':
+                    return outputYaml ? (outputJson ? getServicesJson(clusterData.services) : getServicesYaml(clusterData.services)) : getServicesTable(clusterData.services);
+                    
+                case 'deployments':
+                case 'deployment':
+                case 'deploy':
+                    return outputYaml ? (outputJson ? getDeploymentsJson(clusterData.deployments) : getDeploymentsYaml(clusterData.deployments)) : getDeploymentsTable(clusterData.deployments);
+                    
+                case 'replicasets':
+                case 'replicaset':
+                case 'rs':
+                    return outputYaml ? (outputJson ? getReplicaSetsJson(clusterData.replicasets) : getReplicaSetsYaml(clusterData.replicasets)) : getReplicaSetsTable(clusterData.replicasets);
+                    
+                case 'configmaps':
+                case 'configmap':
+                case 'cm':
+                    return outputYaml ? (outputJson ? getConfigMapsJson(clusterData.configmaps) : getConfigMapsYaml(clusterData.configmaps)) : getConfigMapsTable(clusterData.configmaps);
+                    
+                case 'secrets':
+                case 'secret':
+                    return outputYaml ? (outputJson ? getSecretsJson(clusterData.secrets) : getSecretsYaml(clusterData.secrets)) : getSecretsTable(clusterData.secrets);
+                    
+                case 'events':
+                case 'event':
+                case 'ev':
+                    return getEventsTable(clusterData.events);
+                    
+                case 'nodes':
+                case 'node':
+                case 'no':
+                    return outputYaml ? (outputJson ? getNodesJson(clusterData.nodes) : getNodesYaml(clusterData.nodes)) : getNodesTable(clusterData.nodes);
+                    
+                case 'crd':
+                case 'customresourcedefinitions':
+                case 'customresourcedefinition':
+                    return getCRDsTable(clusterData.crds);
+                    
+                case 'all':
+                    return getAllResourcesTable(clusterData);
+                    
+                default:
+                    return `<div class="error-output">Error: the server doesn't have a resource type "${resource}"</div>`;
+            }
+        }
+
+        function getPodsTable(pods) {
+            let table = `<div class="kubectl-output">
+                <div class="kubectl-header">NAME                           READY   STATUS    RESTARTS   AGE</div>`;
+            
+            pods.forEach(pod => {
+                const statusClass = pod.status.toLowerCase() === 'running' ? 'status-running' : 
+                                   pod.status.toLowerCase() === 'pending' ? 'status-pending' : 'status-error';
+                table += `<div class="kubectl-row">
+                    <span class="resource-name">${pod.name}</span>
+                    <span>${pod.ready}</span>
+                    <span class="${statusClass}">${pod.status}</span>
+                    <span>${pod.restarts}</span>
+                    <span>${pod.age}</span>
+                </div>`;
+            });
+            
+            return table + '</div>';
+        }
+
+        function getServicesTable(services) {
+            let table = `<div class="kubectl-output">
+                <div class="kubectl-header">NAME             TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE</div>`;
+            
+            services.forEach(service => {
+                table += `<div class="kubectl-row">
+                    <span class="resource-name">${service.name}</span>
+                    <span>${service.type}</span>
+                    <span>${service.clusterIp}</span>
+                    <span>${service.externalIp}</span>
+                    <span>${service.ports}</span>
+                    <span>${service.age}</span>
+                </div>`;
+            });
+            
+            return table + '</div>';
+        }
+
+        function getDeploymentsTable(deployments) {
+            let table = `<div class="kubectl-output">
+                <div class="kubectl-header">NAME               READY   UP-TO-DATE   AVAILABLE   AGE</div>`;
+            
+            deployments.forEach(deployment => {
+                table += `<div class="kubectl-row">
+                    <span class="resource-name">${deployment.name}</span>
+                    <span>${deployment.ready}</span>
+                    <span>${deployment.upToDate}</span>
+                    <span>${deployment.available}</span>
+                    <span>${deployment.age}</span>
+                </div>`;
+            });
+            
+            return table + '</div>';
+        }
+
+        function getReplicaSetsTable(replicasets) {
+            let table = `<div class="kubectl-output">
+                <div class="kubectl-header">NAME                          DESIRED   CURRENT   READY   AGE</div>`;
+            
+            replicasets.forEach(rs => {
+                table += `<div class="kubectl-row">
+                    <span class="resource-name">${rs.name}</span>
+                    <span>${rs.desired}</span>
+                    <span>${rs.current}</span>
+                    <span>${rs.ready}</span>
+                    <span>${rs.age}</span>
+                </div>`;
+            });
+            
+            return table + '</div>';
+        }
+
+        function getConfigMapsTable(configmaps) {
+            let table = `<div class="kubectl-output">
+                <div class="kubectl-header">NAME               DATA   AGE</div>`;
+            
+            configmaps.forEach(cm => {
+                table += `<div class="kubectl-row">
+                    <span class="resource-name">${cm.name}</span>
+                    <span>${cm.data}</span>
+                    <span>${cm.age}</span>
+                </div>`;
+            });
+            
+            return table + '</div>';
+        }
+
+        function getSecretsTable(secrets) {
+            let table = `<div class="kubectl-output">
+                <div class="kubectl-header">NAME                  TYPE                                  DATA   AGE</div>`;
+            
+            secrets.forEach(secret => {
+                table += `<div class="kubectl-row">
+                    <span class="resource-name">${secret.name}</span>
+                    <span>${secret.type}</span>
+                    <span>${secret.data}</span>
+                    <span>${secret.age}</span>
+                </div>`;
+            });
+            
+            return table + '</div>';
+        }
+
+        function getEventsTable(events) {
+            let table = `<div class="kubectl-output">
+                <div class="kubectl-header">LAST SEEN   FIRST SEEN   COUNT   NAME                 KIND         SUBOBJECT   TYPE      REASON    SOURCE              MESSAGE</div>`;
+            
+            events.forEach(event => {
+                table += `<div class="kubectl-row" style="grid-template-columns: repeat(10, 1fr); font-size: 0.75em;">
+                    <span>${event.lastSeen}</span>
+                    <span>${event.firstSeen}</span>
+                    <span>${event.count}</span>
+                    <span class="resource-name">${event.name}</span>
+                    <span>${event.kind}</span>
+                    <span>${event.subobject}</span>
+                    <span class="status-running">${event.type}</span>
+                    <span>${event.reason}</span>
+                    <span>${event.source}</span>
+                    <span>${event.message}</span>
+                </div>`;
+            });
+            
+            return table + '</div>';
+        }
+
+        function getNodesTable(nodes) {
+            let table = `<div class="kubectl-output">
+                <div class="kubectl-header">NAME           STATUS   ROLES                  AGE   VERSION</div>`;
+            
+            nodes.forEach(node => {
+                table += `<div class="kubectl-row">
+                    <span class="resource-name">${node.name}</span>
+                    <span class="status-running">${node.status}</span>
+                    <span>${node.roles}</span>
+                    <span>${node.age}</span>
+                    <span>${node.version}</span>
+                </div>`;
+            });
+            
+            return table + '</div>';
+        }
+
+        function getCRDsTable(crds) {
+            let table = `<div class="kubectl-output">
+                <div class="kubectl-header">NAME                              CREATED AT</div>`;
+            
+            crds.forEach(crd => {
+                table += `<div class="kubectl-row">
+                    <span class="resource-name">${crd.name}</span>
+                    <span>${crd.created}</span>
+                </div>`;
+            });
+            
+            return table + '</div>';
+        }
+
+        function getAllResourcesTable(clusterData) {
+            let output = `<div class="kubectl-output">`;
+            
+            if (clusterData.deployments.length > 0) {
+                output += `<div style="margin: 10px 0; color: #4CAF50; font-weight: bold;">NAME                           READY   UP-TO-DATE   AVAILABLE   AGE</div>`;
+                output += `<div style="color: #FFB74D;">deployment.apps/webapp-deployment</div>`;
+                clusterData.deployments.forEach(d => {
+                    output += `<div class="kubectl-row">
+                        <span class="resource-name">deployment.apps/${d.name}</span>
+                        <span>${d.ready}</span>
+                        <span>${d.upToDate}</span>
+                        <span>${d.available}</span>
+                        <span>${d.age}</span>
+                    </div>`;
+                });
+            }
+            
+            if (clusterData.services.length > 0) {
+                output += `<div style="margin: 15px 0 10px 0; color: #4CAF50; font-weight: bold;">NAME             TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE</div>`;
+                clusterData.services.forEach(s => {
+                    output += `<div class="kubectl-row">
+                        <span class="resource-name">service/${s.name}</span>
+                        <span>${s.type}</span>
+                        <span>${s.clusterIp}</span>
+                        <span>${s.externalIp}</span>
+                        <span>${s.ports}</span>
+                        <span>${s.age}</span>
+                    </div>`;
+                });
+            }
+            
+            if (clusterData.pods.length > 0) {
+                output += `<div style="margin: 15px 0 10px 0; color: #4CAF50; font-weight: bold;">NAME                           READY   STATUS    RESTARTS   AGE</div>`;
+                clusterData.pods.forEach(p => {
+                    const statusClass = p.status.toLowerCase() === 'running' ? 'status-running' : 
+                                       p.status.toLowerCase() === 'pending' ? 'status-pending' : 'status-error';
+                    output += `<div class="kubectl-row">
+                        <span class="resource-name">pod/${p.name}</span>
+                        <span>${p.ready}</span>
+                        <span class="${statusClass}">${p.status}</span>
+                        <span>${p.restarts}</span>
+                        <span>${p.age}</span>
+                    </div>`;
+                });
+            }
+            
+            return output + '</div>';
+        }
+
+        function handleDescribeCommand(resource, resourceName, clusterData) {
+            if (!resourceName) {
+                return `<div class="error-output">Error: You must specify the type of resource to describe.</div>`;
+            }
+            
+            switch (resource) {
+                case 'pod':
+                case 'pods':
+                    const pod = clusterData.pods.find(p => p.name.includes(resourceName) || p.name === resourceName);
+                    if (!pod) {
+                        return `<div class="error-output">Error from server (NotFound): pods "${resourceName}" not found</div>`;
+                    }
+                    return describePod(pod);
+                    
+                case 'service':
+                case 'services':
+                case 'svc':
+                    const service = clusterData.services.find(s => s.name === resourceName);
+                    if (!service) {
+                        return `<div class="error-output">Error from server (NotFound): services "${resourceName}" not found</div>`;
+                    }
+                    return describeService(service);
+                    
+                default:
+                    return `<div class="error-output">Error: the server doesn't have a resource type "${resource}"</div>`;
+            }
+        }
+
+        function describePod(pod) {
+            return `<div class="kubectl-output" style="color: #e0e0e0;">
+Name:         ${pod.name}
+Namespace:    default
+Priority:     0
+Node:         ${pod.node}
+Start Time:   ${new Date(Date.now() - 120000).toISOString()}
+Labels:       app=webapp
+              pod-template-hash=abc123
+Annotations:  <none>
+Status:       ${pod.status}
+IP:           ${pod.ip}
+IPs:
+  IP:  ${pod.ip}
+Containers:
+  webapp:
+    Container ID:   containerd://abc123def456
+    Image:          nginx:1.21
+    Image ID:       docker.io/library/nginx@sha256:abc123
+    Port:           80/TCP
+    Host Port:      0/TCP
+    State:          ${pod.status}
+      Started:      ${new Date(Date.now() - 60000).toISOString()}
+    Ready:          ${pod.ready === '1/1' ? 'True' : 'False'}
+    Restart Count:  ${pod.restarts}
+    Limits:
+      cpu:     100m
+      memory:  128Mi
+    Requests:
+      cpu:        50m
+      memory:     64Mi
+    Environment:  <none>
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-xyz (ro)
+Conditions:
+  Type              Status
+  Initialized       True
+  Ready             ${pod.ready === '1/1' ? 'True' : 'False'}
+  ContainersReady   ${pod.ready === '1/1' ? 'True' : 'False'}
+  PodScheduled      True
+Events:
+  Type    Reason     Age   From               Message
+  ----    ------     ----  ----               -------
+  Normal  Scheduled  2m    default-scheduler  Successfully assigned default/${pod.name} to ${pod.node}
+  Normal  Pulled     2m    kubelet            Container image "nginx:1.21" already present on machine
+  Normal  Created    2m    kubelet            Created container webapp
+  Normal  Started    2m    kubelet            Started container webapp
+</div>`;
+        }
+
+        function describeService(service) {
+            return `<div class="kubectl-output" style="color: #e0e0e0;">
+Name:              ${service.name}
+Namespace:         default
+Labels:            app=webapp
+Annotations:       <none>
+Selector:          app=webapp
+Type:              ${service.type}
+IP Family Policy: SingleStack
+IP Families:      IPv4
+IP:                ${service.clusterIp}
+IPs:               ${service.clusterIp}
+Port:              http  80/TCP
+TargetPort:        80/TCP
+Endpoints:         ${service.name === 'webapp-service' ? '10.244.1.10:80,10.244.1.12:80,10.244.2.11:80' : '<none>'}
+Session Affinity:  None
+Events:            <none>
+</div>`;
+        }
+
+        function handleLogsCommand(resourceName, clusterData) {
+            if (!resourceName) {
+                return `<div class="error-output">Error: You must specify a resource name.</div>`;
+            }
+            
+            const pod = clusterData.pods.find(p => p.name.includes(resourceName) || p.name === resourceName);
+            if (!pod) {
+                return `<div class="error-output">Error from server (NotFound): pods "${resourceName}" not found</div>`;
+            }
+            
+            if (pod.status !== 'Running') {
+                return `<div class="error-output">Error: container is not running (${pod.status})</div>`;
+            }
+            
+            return `<div class="kubectl-output" style="color: #81C784; font-family: monospace;">
+/docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration  
+/docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/
+/docker-entrypoint.sh: Launching /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh
+10-listen-on-ipv6-by-default.sh: info: Getting the checksum of /etc/nginx/conf.d/default.conf
+10-listen-on-ipv6-by-default.sh: info: Enabled listen on IPv6 in /etc/nginx/conf.d/default.conf
+/docker-entrypoint.sh: Launching /docker-entrypoint.d/20-envsubst-on-templates.sh
+/docker-entrypoint.sh: Launching /docker-entrypoint.d/30-tune-worker-processes.sh
+/docker-entrypoint.sh: Configuration complete; ready for start up
+2024/01/30 12:34:56 [notice] 1#1: using the "epoll" event method
+2024/01/30 12:34:56 [notice] 1#1: nginx/1.21.6
+2024/01/30 12:34:56 [notice] 1#1: built by gcc 10.2.1 20210110 (Debian 10.2.1-6)
+2024/01/30 12:34:56 [notice] 1#1: OS: Linux 5.4.0-74-generic
+2024/01/30 12:34:56 [notice] 1#1: getrlimit(RLIMIT_NOFILE): 1048576:1048576
+2024/01/30 12:34:56 [notice] 1#1: start worker processes
+2024/01/30 12:34:56 [notice] 1#1: start worker process 32
+2024/01/30 12:35:01 [info] 32#32: *1 client connected from 10.244.0.1
+</div>`;
+        }
+
+        function handleApiResourcesCommand() {
+            return `<div class="kubectl-output">
+<div class="kubectl-header">NAME                              SHORTNAMES   APIVERSION                        NAMESPACED   KIND</div>
+<div class="kubectl-row" style="grid-template-columns: 2fr 1fr 2fr 1fr 2fr; font-size: 0.8em;">
+    <span class="resource-name">bindings</span>
+    <span></span>
+    <span>v1</span>
+    <span>true</span>
+    <span>Binding</span>
+</div>
+<div class="kubectl-row" style="grid-template-columns: 2fr 1fr 2fr 1fr 2fr; font-size: 0.8em;">
+    <span class="resource-name">componentstatuses</span>
+    <span>cs</span>
+    <span>v1</span>
+    <span>false</span>
+    <span>ComponentStatus</span>
+</div>
+<div class="kubectl-row" style="grid-template-columns: 2fr 1fr 2fr 1fr 2fr; font-size: 0.8em;">
+    <span class="resource-name">configmaps</span>
+    <span>cm</span>
+    <span>v1</span>
+    <span>true</span>
+    <span>ConfigMap</span>
+</div>
+<div class="kubectl-row" style="grid-template-columns: 2fr 1fr 2fr 1fr 2fr; font-size: 0.8em;">
+    <span class="resource-name">endpoints</span>
+    <span>ep</span>
+    <span>v1</span>
+    <span>true</span>
+    <span>Endpoints</span>
+</div>
+<div class="kubectl-row" style="grid-template-columns: 2fr 1fr 2fr 1fr 2fr; font-size: 0.8em;">
+    <span class="resource-name">events</span>
+    <span>ev</span>
+    <span>v1</span>
+    <span>true</span>
+    <span>Event</span>
+</div>
+<div class="kubectl-row" style="grid-template-columns: 2fr 1fr 2fr 1fr 2fr; font-size: 0.8em;">
+    <span class="resource-name">limitranges</span>
+    <span>limits</span>
+    <span>v1</span>
+    <span>true</span>
+    <span>LimitRange</span>
+</div>
+<div class="kubectl-row" style="grid-template-columns: 2fr 1fr 2fr 1fr 2fr; font-size: 0.8em;">
+    <span class="resource-name">namespaces</span>
+    <span>ns</span>
+    <span>v1</span>
+    <span>false</span>
+    <span>Namespace</span>
+</div>
+<div class="kubectl-row" style="grid-template-columns: 2fr 1fr 2fr 1fr 2fr; font-size: 0.8em;">
+    <span class="resource-name">nodes</span>
+    <span>no</span>
+    <span>v1</span>
+    <span>false</span>
+    <span>Node</span>
+</div>
+<div class="kubectl-row" style="grid-template-columns: 2fr 1fr 2fr 1fr 2fr; font-size: 0.8em;">
+    <span class="resource-name">persistentvolumeclaims</span>
+    <span>pvc</span>
+    <span>v1</span>
+    <span>true</span>
+    <span>PersistentVolumeClaim</span>
+</div>
+<div class="kubectl-row" style="grid-template-columns: 2fr 1fr 2fr 1fr 2fr; font-size: 0.8em;">
+    <span class="resource-name">persistentvolumes</span>
+    <span>pv</span>
+    <span>v1</span>
+    <span>false</span>
+    <span>PersistentVolume</span>
+</div>
+<div class="kubectl-row" style="grid-template-columns: 2fr 1fr 2fr 1fr 2fr; font-size: 0.8em;">
+    <span class="resource-name">pods</span>
+    <span>po</span>
+    <span>v1</span>
+    <span>true</span>
+    <span>Pod</span>
+</div>
+<div class="kubectl-row" style="grid-template-columns: 2fr 1fr 2fr 1fr 2fr; font-size: 0.8em;">
+    <span class="resource-name">secrets</span>
+    <span></span>
+    <span>v1</span>
+    <span>true</span>
+    <span>Secret</span>
+</div>
+<div class="kubectl-row" style="grid-template-columns: 2fr 1fr 2fr 1fr 2fr; font-size: 0.8em;">
+    <span class="resource-name">services</span>
+    <span>svc</span>
+    <span>v1</span>
+    <span>true</span>
+    <span>Service</span>
+</div>
+<div class="kubectl-row" style="grid-template-columns: 2fr 1fr 2fr 1fr 2fr; font-size: 0.8em;">
+    <span class="resource-name">deployments</span>
+    <span>deploy</span>
+    <span>apps/v1</span>
+    <span>true</span>
+    <span>Deployment</span>
+</div>
+<div class="kubectl-row" style="grid-template-columns: 2fr 1fr 2fr 1fr 2fr; font-size: 0.8em;">
+    <span class="resource-name">replicasets</span>
+    <span>rs</span>
+    <span>apps/v1</span>
+    <span>true</span>
+    <span>ReplicaSet</span>
+</div>
+<div class="kubectl-row" style="grid-template-columns: 2fr 1fr 2fr 1fr 2fr; font-size: 0.8em;">
+    <span class="resource-name">ciliumidentities</span> 
+    <span></span>
+    <span>cilium.io/v2</span>
+    <span>false</span>
+    <span>CiliumIdentity</span>
+</div>
+<div class="kubectl-row" style="grid-template-columns: 2fr 1fr 2fr 1fr 2fr; font-size: 0.8em;">
+    <span class="resource-name">ciliumnetworkpolicies</span>
+    <span>cnp</span>
+    <span>cilium.io/v2</span>
+    <span>true</span>
+    <span>CiliumNetworkPolicy</span>
+</div>
+</div>`;
+        }
+
+        function getPodYaml(pod) {
+            return `<div class="yaml-output">apiVersion: v1
+kind: Pod
+metadata:
+  name: ${pod.name}
+  namespace: default
+  labels:
+    app: webapp
+    pod-template-hash: abc123
+spec:
+  containers:
+  - name: webapp
+    image: nginx:1.21
+    ports:
+    - containerPort: 80
+      protocol: TCP
+    resources:
+      limits:
+        cpu: 100m
+        memory: 128Mi
+      requests:
+        cpu: 50m
+        memory: 64Mi
+  restartPolicy: Always
+  nodeName: ${pod.node}
+status:
+  phase: ${pod.status}
+  podIP: ${pod.ip}
+  conditions:
+  - type: Ready
+    status: "${pod.ready === '1/1' ? 'True' : 'False'}"
+  containerStatuses:
+  - name: webapp
+    ready: ${pod.ready === '1/1' ? 'true' : 'false'}
+    restartCount: ${pod.restarts}
+    image: nginx:1.21
+    state:
+      running:
+        startedAt: "${new Date(Date.now() - 60000).toISOString()}"</div>`;
+        }
     </script>
 </body>
 </html>
