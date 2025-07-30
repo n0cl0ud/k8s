@@ -246,6 +246,7 @@
         .timeline-content {
             transition: all 0.3s ease;
             overflow: hidden;
+            max-height: 1000px;
         }
         
         .timeline-content.collapsed {
@@ -1555,12 +1556,15 @@ spec:
         ];
         
         function startDeployment() {
+            console.log('startDeployment called');
             if (isPaused) {
+                console.log('Resuming deployment');
                 isPaused = false;
                 updateButtons();
                 return;
             }
             
+            console.log('Starting new deployment');
             isPlaying = true;
             isPaused = false;
             currentStep = 0;
@@ -1604,8 +1608,16 @@ spec:
         }
         
         function toggleSpeed() {
+            console.log('toggleSpeed called, current speed:', speed);
             speed = speed === 1 ? 2 : speed === 2 ? 4 : 1;
-            document.getElementById('speedBtn').textContent = `⚡ Speed: ${speed}x`;
+            console.log('New speed:', speed);
+            const speedBtn = document.getElementById('speedBtn');
+            if (speedBtn) {
+                speedBtn.textContent = `⚡ Speed: ${speed}x`;
+                console.log('Speed button updated');
+            } else {
+                console.log('Speed button not found!');
+            }
         }
         
         function updateButtons() {
@@ -1752,15 +1764,23 @@ spec:
         }
 
         function toggleTimeline() {
+            console.log('toggleTimeline called');
             const timelineContent = document.getElementById('timeline-content');
             const toggleButton = document.querySelector('.timeline-toggle');
             
-            if (timelineContent.classList.contains('collapsed')) {
-                timelineContent.classList.remove('collapsed');
-                toggleButton.textContent = '▼';
-            } else {
-                timelineContent.classList.add('collapsed');
-                toggleButton.textContent = '▶';
+            console.log('timelineContent:', timelineContent);
+            console.log('toggleButton:', toggleButton);
+            
+            if (timelineContent && toggleButton) {
+                if (timelineContent.classList.contains('collapsed')) {
+                    timelineContent.classList.remove('collapsed');
+                    toggleButton.textContent = '▼';
+                    console.log('Timeline expanded');
+                } else {
+                    timelineContent.classList.add('collapsed');
+                    toggleButton.textContent = '▶';
+                    console.log('Timeline collapsed');
+                }
             }
         }
         
@@ -2493,7 +2513,8 @@ spec:
             // Focus on kubectl input when switching to kubectl tab
             if (tabName === 'kubectl') {
                 setTimeout(() => {
-                    document.getElementById('shellInput').focus();
+                    const terminalInput = document.getElementById('terminalInput');
+                    if (terminalInput) terminalInput.focus();
                 }, 100);
             }
         }
@@ -2714,14 +2735,20 @@ spec:
                 toggle.textContent = '▲';
                 // Focus on input when opening
                 setTimeout(() => {
-                    document.getElementById('shellInput').focus();
+                    const terminalInput = document.getElementById('terminalInput');
+                    if (terminalInput) terminalInput.focus();
                 }, 300);
             }
         }
 
         function initializeKubectlShell() {
-            const shellInput = document.getElementById('shellInput');
+            const shellInput = document.getElementById('terminalInput');
             const autocompleteSuggestions = document.getElementById('autocompleteSuggestions');
+            
+            if (!shellInput) {
+                console.log('Terminal input not found, skipping shell initialization');
+                return;
+            }
             
             // Commands and resources for autocomplete
             const commands = ['get', 'describe', 'logs', 'api-resources'];
@@ -3931,6 +3958,14 @@ status:
       running:
         startedAt: "${new Date(Date.now() - 60000).toISOString()}"</div>`;
         }
+
+        // Initialize everything when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Page loaded, initializing...');
+            initializeKubectlShell();
+            updateButtons();
+            console.log('Initialization complete');
+        });
     </script>
 </body>
 </html>
