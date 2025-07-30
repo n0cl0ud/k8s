@@ -3906,14 +3906,40 @@ Events:            <none>
                     return handleDescribeCommand(parts.slice(1));
                 case 'logs':
                     return handleLogsCommand(parts.slice(1));
+                case 'apply':
+                    return handleApplyCommand(parts.slice(1));
+                case 'create':
+                    return handleCreateCommand(parts.slice(1));
+                case 'delete':
+                    return handleDeleteCommand(parts.slice(1));
+                case 'edit':
+                    return handleEditCommand(parts.slice(1));
+                case 'patch':
+                    return handlePatchCommand(parts.slice(1));
+                case 'scale':
+                    return handleScaleCommand(parts.slice(1));
+                case 'rollout':
+                    return handleRolloutCommand(parts.slice(1));
+                case 'exec':
+                    return handleExecCommand(parts.slice(1));
+                case 'port-forward':
+                    return handlePortForwardCommand(parts.slice(1));
+                case 'top':
+                    return handleTopCommand(parts.slice(1));
                 case 'api-resources':
                     return getApiResourcesOutput();
+                case 'api-versions':
+                    return getApiVersionsOutput();
                 case 'version':
                     return getVersionOutput();
                 case 'cluster-info':
                     return getClusterInfoOutput();
                 case 'config':
                     return handleConfigCommand(parts.slice(1));
+                case 'auth':
+                    return handleAuthCommand(parts.slice(1));
+                case 'proxy':
+                    return handleProxyCommand(parts.slice(1));
                 default:
                     return `<div class="error-output">Error: unknown command "${action}". Try "help" for available commands.</div>`;
             }
@@ -3953,8 +3979,11 @@ Events:            <none>
                 'endpoints': 'endpoints',
                 'ep': 'endpoints',
                 'events': 'events',
+                'ev': 'events',
                 'ingress': 'ingress',
-                'ing': 'ingress'
+                'ing': 'ingress',
+                'crd': 'customresourcedefinitions',
+                'customresourcedefinitions': 'customresourcedefinitions'
             };
 
             const mappedResource = resourceMap[resource] || resource;
@@ -3982,6 +4011,8 @@ Events:            <none>
                     return getConfigMapsTable(clusterData.configmaps);
                 case 'secrets':
                     return getSecretsTable(clusterData.secrets);
+                case 'events':
+                    return getEventsTable(clusterData.events);
                 case 'namespaces':
                     return getNamespacesTable();
                 case 'nodes':
@@ -3992,6 +4023,11 @@ Events:            <none>
                     return getPersistentVolumeClaimsTable();
                 case 'endpoints':
                     return getEndpointsTable(clusterData);
+                case 'crd':
+                case 'customresourcedefinitions':
+                    return getCRDsTable(clusterData.crds);
+                case 'all':
+                    return getAllResourcesTable(clusterData);
                 default:
                     return `<div class="error-output">Error: the server doesn't have a resource type "${resource}"</div>`;
             }
@@ -4052,10 +4088,31 @@ Events:            <none>
   get         Display one or many resources
   describe    Show detailed information about a resource
   logs        Print container logs
+  create      Create a resource from a file or from stdin
+  apply       Apply a configuration to a resource by filename or stdin
+  delete      Delete resources by filenames, stdin, resources and names
+  edit        Edit a resource on the server
+</div>
+
+<div style="color: #FFC107; font-weight: bold;">Deploy and Manage:</div>
+<div style="margin-left: 15px; margin-bottom: 10px;">
+  rollout     Manage the rollout of a resource
+  scale       Set a new size for a Deployment, ReplicaSet or Replication
+  patch       Update field(s) of a resource using strategic merge patch
+  exec        Execute a command in a container
+  port-forward Forward one or more local ports to a pod
+</div>
+
+<div style="color: #FFC107; font-weight: bold;">Cluster Management:</div>
+<div style="margin-left: 15px; margin-bottom: 10px;">
+  top         Display Resource (CPU/Memory/Storage) usage
   api-resources    Print supported API resources
+  api-versions     Print supported API versions
   version     Print client and server version
   cluster-info Display cluster info
   config      Modify kubeconfig files
+  auth        Inspect authorization
+  proxy       Run a proxy to the Kubernetes API server
 </div>
 
 <div style="color: #FFC107; font-weight: bold;">Resource shortcuts:</div>
@@ -4063,16 +4120,24 @@ Events:            <none>
   po = pods              svc = services         deploy = deployments
   rs = replicasets       cm = configmaps        ns = namespaces
   pv = persistentvolumes pvc = persistentvolumeclaims
-  ep = endpoints         ing = ingress
+  ep = endpoints         ing = ingress          ev = events
+  crd = customresourcedefinitions
 </div>
 
 <div style="color: #FFC107; font-weight: bold; margin-top: 10px;">Examples:</div>
 <div style="margin-left: 15px; font-family: monospace; font-size: 12px; color: #ccc;">
-  kubectl get pods
-  kubectl get svc
-  kubectl describe pod webapp-deployment-abc123
-  kubectl logs webapp-deployment-abc123
-  kubectl get pods -o yaml
+  kubectl get pods                    # List all pods
+  kubectl get svc                     # List all services
+  kubectl get events                  # List cluster events
+  kubectl describe pod webapp-123     # Describe a pod
+  kubectl logs webapp-123             # Show pod logs
+  kubectl exec -it webapp-123 bash    # Interactive shell
+  kubectl apply -f deployment.yaml    # Apply configuration
+  kubectl delete pod webapp-123       # Delete a pod
+  kubectl scale deployment webapp --replicas=3
+  kubectl rollout status deployment/webapp
+  kubectl top nodes                   # Show node usage
+  kubectl auth can-i create pods      # Check permissions
 </div>
             </div>`;
         }
@@ -4109,6 +4174,310 @@ current-context: kubernetes-admin@kubernetes
 kind: Config
 users:
 - name: kubernetes-admin</div>`;
+        }
+
+        function handleApplyCommand(parts) {
+            if (parts.length === 0) {
+                return '<div class="error-output">Error: must specify -f flag with filename</div>';
+            }
+            
+            if (parts[0] === '-f') {
+                const filename = parts[1] || 'deployment.yaml';
+                return `<div class="kubectl-output">
+<div style="color: #4CAF50;">deployment.apps/webapp-deployment created</div>
+<div style="color: #4CAF50;">service/webapp-service created</div>
+                </div>`;
+            }
+            
+            return '<div class="error-output">Error: must specify -f flag with filename</div>';
+        }
+
+        function handleCreateCommand(parts) {
+            if (parts.length === 0) {
+                return '<div class="error-output">Error: You must specify the type of resource to create.</div>';
+            }
+            
+            const resourceType = parts[0];
+            const resourceName = parts[1];
+            
+            switch (resourceType) {
+                case 'deployment':
+                    return `<div class="kubectl-output">
+<div style="color: #4CAF50;">deployment.apps/${resourceName || 'my-deployment'} created</div>
+                    </div>`;
+                case 'service':
+                    return `<div class="kubectl-output">
+<div style="color: #4CAF50;">service/${resourceName || 'my-service'} created</div>
+                    </div>`;
+                case 'namespace':
+                    return `<div class="kubectl-output">
+<div style="color: #4CAF50;">namespace/${resourceName || 'my-namespace'} created</div>
+                    </div>`;
+                case 'configmap':
+                    return `<div class="kubectl-output">
+<div style="color: #4CAF50;">configmap/${resourceName || 'my-configmap'} created</div>
+                    </div>`;
+                case 'secret':
+                    return `<div class="kubectl-output">
+<div style="color: #4CAF50;">secret/${resourceName || 'my-secret'} created</div>
+                    </div>`;
+                default:
+                    return `<div class="error-output">Error: the server doesn't have a resource type "${resourceType}"</div>`;
+            }
+        }
+
+        function handleDeleteCommand(parts) {
+            if (parts.length === 0) {
+                return '<div class="error-output">Error: You must specify the type of resource to delete.</div>';
+            }
+            
+            const resourceType = parts[0];
+            const resourceName = parts[1] || '--all';
+            
+            if (resourceName === '--all') {
+                return `<div class="kubectl-output">
+<div style="color: #ff9800;">deployment.apps "webapp-deployment" deleted</div>
+<div style="color: #ff9800;">service "webapp-service" deleted</div>
+                </div>`;
+            }
+            
+            return `<div class="kubectl-output">
+<div style="color: #ff9800;">${resourceType} "${resourceName}" deleted</div>
+            </div>`;
+        }
+
+        function handleEditCommand(parts) {
+            if (parts.length === 0) {
+                return '<div class="error-output">Error: You must specify the type of resource to edit.</div>';
+            }
+            
+            const resourceType = parts[0];
+            const resourceName = parts[1] || 'webapp-deployment';
+            
+            return `<div class="kubectl-output">
+# Please edit the object below. Lines beginning with a '#' will be ignored,
+# and an empty file will abort the edit.
+#
+<div style="color: #ff9800;">Edit cancelled, no changes made.</div>
+            </div>`;
+        }
+
+        function handlePatchCommand(parts) {
+            if (parts.length < 2) {
+                return '<div class="error-output">Error: patch requires resource type and name</div>';
+            }
+            
+            const resourceType = parts[0];
+            const resourceName = parts[1];
+            
+            return `<div class="kubectl-output">
+<div style="color: #4CAF50;">${resourceType}/${resourceName} patched</div>
+            </div>`;
+        }
+
+        function handleScaleCommand(parts) {
+            if (parts.length < 2) {
+                return '<div class="error-output">Error: scale requires resource type and --replicas flag</div>';
+            }
+            
+            const resource = parts[0];
+            const replicasArg = parts.find(p => p.startsWith('--replicas='));
+            const replicas = replicasArg ? replicasArg.split('=')[1] : '3';
+            
+            return `<div class="kubectl-output">
+<div style="color: #4CAF50;">${resource} scaled</div>
+            </div>`;
+        }
+
+        function handleRolloutCommand(parts) {
+            if (parts.length === 0) {
+                return '<div class="error-output">Error: rollout requires a subcommand (status, history, undo)</div>';
+            }
+            
+            const subcommand = parts[0];
+            const resource = parts[1] || 'deployment/webapp-deployment';
+            
+            switch (subcommand) {
+                case 'status':
+                    return `<div class="kubectl-output">
+deployment "${resource}" successfully rolled out
+                    </div>`;
+                case 'history':
+                    return `<div class="kubectl-output">
+<div class="kubectl-header">REVISION  CHANGE-CAUSE</div>
+<div class="kubectl-row">1         &lt;none&gt;</div>
+<div class="kubectl-row">2         kubectl set image deployment=nginx:1.21</div>
+                    </div>`;
+                case 'undo':
+                    return `<div class="kubectl-output">
+<div style="color: #4CAF50;">deployment.apps/${resource} rolled back</div>
+                    </div>`;
+                default:
+                    return `<div class="error-output">Error: unknown rollout subcommand "${subcommand}"</div>`;
+            }
+        }
+
+        function handleExecCommand(parts) {
+            if (parts.length === 0) {
+                return '<div class="error-output">Error: exec requires pod name</div>';
+            }
+            
+            const podName = parts[0];
+            return `<div class="kubectl-output">
+<div style="color: #4CAF50;">Starting interactive shell in pod ${podName}...</div>
+<div style="color: #888;">root@${podName}:/# </div>
+            </div>`;
+        }
+
+        function handlePortForwardCommand(parts) {
+            if (parts.length < 2) {
+                return '<div class="error-output">Error: port-forward requires pod name and port</div>';
+            }
+            
+            const podName = parts[0];
+            const ports = parts[1];
+            
+            return `<div class="kubectl-output">
+<div style="color: #4CAF50;">Forwarding from 127.0.0.1:${ports.split(':')[0]} -> ${ports.split(':')[1] || ports}</div>
+<div style="color: #4CAF50;">Forwarding from [::1]:${ports.split(':')[0]} -> ${ports.split(':')[1] || ports}</div>
+            </div>`;
+        }
+
+        function handleTopCommand(parts) {
+            if (parts.length === 0) {
+                return '<div class="error-output">Error: top requires resource type (nodes, pods)</div>';
+            }
+            
+            const resourceType = parts[0];
+            
+            switch (resourceType) {
+                case 'nodes':
+                    return `<div class="kubectl-output">
+<div class="kubectl-header">NAME           CPU(cores)   CPU%   MEMORY(bytes)   MEMORY%</div>
+<div class="kubectl-row">control-plane  250m         12%    1024Mi          25%</div>
+<div class="kubectl-row">worker-1       150m         7%     512Mi           12%</div>
+                    </div>`;
+                case 'pods':
+                    return `<div class="kubectl-output">
+<div class="kubectl-header">NAME                               CPU(cores)   MEMORY(bytes)</div>
+<div class="kubectl-row">webapp-deployment-abc123-def45     10m          64Mi</div>
+<div class="kubectl-row">webapp-deployment-abc123-ghi78     12m          68Mi</div>
+                    </div>`;
+                default:
+                    return `<div class="error-output">Error: top ${resourceType} not supported</div>`;
+            }
+        }
+
+        function handleAuthCommand(parts) {
+            if (parts.length === 0) {
+                return '<div class="error-output">Error: auth requires subcommand (can-i, whoami)</div>';
+            }
+            
+            const subcommand = parts[0];
+            
+            switch (subcommand) {
+                case 'can-i':
+                    return `<div class="kubectl-output">yes</div>`;
+                case 'whoami':
+                    return `<div class="kubectl-output">kubernetes-admin</div>`;
+                default:
+                    return `<div class="error-output">Error: unknown auth subcommand "${subcommand}"</div>`;
+            }
+        }
+
+        function handleProxyCommand(parts) {
+            const port = parts.find(p => p.startsWith('--port='))?.split('=')[1] || '8001';
+            return `<div class="kubectl-output">
+<div style="color: #4CAF50;">Starting to serve on 127.0.0.1:${port}</div>
+            </div>`;
+        }
+
+        function getApiVersionsOutput() {
+            return `<div class="kubectl-output">
+admissionregistration.k8s.io/v1
+admissionregistration.k8s.io/v1beta1
+apiextensions.k8s.io/v1
+apiregistration.k8s.io/v1
+apps/v1
+authentication.k8s.io/v1
+authorization.k8s.io/v1
+autoscaling/v1
+autoscaling/v2
+batch/v1
+batch/v1beta1
+certificates.k8s.io/v1
+coordination.k8s.io/v1
+core/v1
+discovery.k8s.io/v1
+events.k8s.io/v1
+networking.k8s.io/v1
+node.k8s.io/v1
+policy/v1
+rbac.authorization.k8s.io/v1
+scheduling.k8s.io/v1
+storage.k8s.io/v1
+v1
+            </div>`;
+        }
+
+        function getApiResourcesOutput() {
+            return `<div class="kubectl-output">
+<div class="kubectl-header">NAME                              SHORTNAMES   APIVERSION                        NAMESPACED   KIND</div>
+<div class="kubectl-row">bindings                                           v1                                true         Binding</div>
+<div class="kubectl-row">componentstatuses                 cs             v1                                false        ComponentStatus</div>
+<div class="kubectl-row">configmaps                        cm             v1                                true         ConfigMap</div>
+<div class="kubectl-row">endpoints                         ep             v1                                true         Endpoints</div>
+<div class="kubectl-row">events                            ev             v1                                true         Event</div>
+<div class="kubectl-row">limitranges                       limits         v1                                true         LimitRange</div>
+<div class="kubectl-row">namespaces                        ns             v1                                false        Namespace</div>
+<div class="kubectl-row">nodes                             no             v1                                false        Node</div>
+<div class="kubectl-row">persistentvolumeclaims            pvc            v1                                true         PersistentVolumeClaim</div>
+<div class="kubectl-row">persistentvolumes                 pv             v1                                false        PersistentVolume</div>
+<div class="kubectl-row">pods                              po             v1                                true         Pod</div>
+<div class="kubectl-row">podtemplates                                     v1                                true         PodTemplate</div>
+<div class="kubectl-row">replicationcontrollers            rc             v1                                true         ReplicationController</div>
+<div class="kubectl-row">resourcequotas                    quota          v1                                true         ResourceQuota</div>
+<div class="kubectl-row">secrets                                          v1                                true         Secret</div>
+<div class="kubectl-row">serviceaccounts                   sa             v1                                true         ServiceAccount</div>
+<div class="kubectl-row">services                          svc            v1                                true         Service</div>
+<div class="kubectl-row">mutatingwebhookconfigurations                    admissionregistration.k8s.io/v1  false        MutatingWebhookConfiguration</div>
+<div class="kubectl-row">validatingwebhookconfigurations                  admissionregistration.k8s.io/v1  false        ValidatingWebhookConfiguration</div>
+<div class="kubectl-row">customresourcedefinitions         crd,crds       apiextensions.k8s.io/v1           false        CustomResourceDefinition</div>
+<div class="kubectl-row">controllerrevisions                              apps/v1                           true         ControllerRevision</div>
+<div class="kubectl-row">daemonsets                        ds             apps/v1                           true         DaemonSet</div>
+<div class="kubectl-row">deployments                       deploy         apps/v1                           true         Deployment</div>
+<div class="kubectl-row">replicasets                       rs             apps/v1                           true         ReplicaSet</div>
+<div class="kubectl-row">statefulsets                      sts            apps/v1                           true         StatefulSet</div>
+<div class="kubectl-row">tokenreviews                                     authentication.k8s.io/v1         false        TokenReview</div>
+<div class="kubectl-row">localsubjectaccessreviews                       authorization.k8s.io/v1           true         LocalSubjectAccessReview</div>
+<div class="kubectl-row">selfsubjectaccessreviews                        authorization.k8s.io/v1           false        SelfSubjectAccessReview</div>
+<div class="kubectl-row">selfsubjectrulesreviews                         authorization.k8s.io/v1           false        SelfSubjectRulesReview</div>
+<div class="kubectl-row">subjectaccessreviews                            authorization.k8s.io/v1           false        SubjectAccessReview</div>
+<div class="kubectl-row">horizontalpodautoscalers          hpa            autoscaling/v2                    true         HorizontalPodAutoscaler</div>
+<div class="kubectl-row">cronjobs                          cj             batch/v1                          true         CronJob</div>
+<div class="kubectl-row">jobs                                             batch/v1                          true         Job</div>
+<div class="kubectl-row">certificatesigningrequests        csr            certificates.k8s.io/v1            false        CertificateSigningRequest</div>
+<div class="kubectl-row">leases                                           coordination.k8s.io/v1            true         Lease</div>
+<div class="kubectl-row">endpointslices                                   discovery.k8s.io/v1               true         EndpointSlice</div>
+<div class="kubectl-row">events                            ev             events.k8s.io/v1                  true         Event</div>
+<div class="kubectl-row">flowschemas                                      flowcontrol.apiserver.k8s.io/v1  false        FlowSchema</div>
+<div class="kubectl-row">prioritylevelconfigurations                     flowcontrol.apiserver.k8s.io/v1  false        PriorityLevelConfiguration</div>
+<div class="kubectl-row">ingressclasses                                   networking.k8s.io/v1              false        IngressClass</div>
+<div class="kubectl-row">ingresses                         ing            networking.k8s.io/v1              true         Ingress</div>
+<div class="kubectl-row">networkpolicies                   netpol         networking.k8s.io/v1              true         NetworkPolicy</div>
+<div class="kubectl-row">runtimeclasses                                   node.k8s.io/v1                    false        RuntimeClass</div>
+<div class="kubectl-row">poddisruptionbudgets              pdb            policy/v1                         true         PodDisruptionBudget</div>
+<div class="kubectl-row">clusterrolebindings                              rbac.authorization.k8s.io/v1     false        ClusterRoleBinding</div>
+<div class="kubectl-row">clusterroles                                     rbac.authorization.k8s.io/v1     false        ClusterRole</div>
+<div class="kubectl-row">rolebindings                                     rbac.authorization.k8s.io/v1     true         RoleBinding</div>
+<div class="kubectl-row">roles                                            rbac.authorization.k8s.io/v1     true         Role</div>
+<div class="kubectl-row">priorityclasses                   pc             scheduling.k8s.io/v1              false        PriorityClass</div>
+<div class="kubectl-row">csidrivers                                       storage.k8s.io/v1                 false        CSIDriver</div>
+<div class="kubectl-row">csinodes                                         storage.k8s.io/v1                 false        CSINode</div>
+<div class="kubectl-row">csistoragecapacities                             storage.k8s.io/v1                 true         CSIStorageCapacity</div>
+<div class="kubectl-row">storageclasses                    sc             storage.k8s.io/v1                 false        StorageClass</div>
+<div class="kubectl-row">volumeattachments                                storage.k8s.io/v1                 false        VolumeAttachment</div>
+            </div>`;
         }
 
         function getPodDescription(pod) {
