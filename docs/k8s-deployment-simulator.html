@@ -198,7 +198,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
+            margin-top: 10px;
+            margin-bottom: 20px;
             padding-bottom: 10px;
             border-bottom: 1px solid rgba(76, 175, 80, 0.3);
         }
@@ -1020,6 +1021,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-top: 10px;
+            margin-bottom: 10px;
         }
 
         .terminal-title {
@@ -1136,6 +1139,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-top: 10px;
+            margin-bottom: 10px;
         }
 
         .logs-title {
@@ -3240,15 +3245,14 @@ spec:
         }
 
         function getPodsTable(pods) {
-            console.log('getPodsTable called with:', pods);
-            console.log('pods type:', typeof pods);
-            console.log('is array:', Array.isArray(pods));
+            console.log('DEBUG getPodsTable - pods:', pods);
+            console.log('DEBUG getPodsTable - pods.length:', pods ? pods.length : 'pods is null/undefined');
             
             let table = `<div class="kubectl-output">
                 <div class="kubectl-header">NAME                           READY   STATUS    RESTARTS   AGE</div>`;
             
-            if (!pods || !Array.isArray(pods)) {
-                console.log('No pods found, returning no resources');
+            if (!pods || !Array.isArray(pods) || pods.length === 0) {
+                console.log('DEBUG getPodsTable - No pods found, pods is:', pods);
                 table += `<div class="kubectl-row">No resources found</div>`;
                 table += `</div>`;
                 return table;
@@ -3270,10 +3274,14 @@ spec:
         }
 
         function getServicesTable(services) {
+            console.log('DEBUG getServicesTable - services:', services);
+            console.log('DEBUG getServicesTable - services.length:', services ? services.length : 'services is null/undefined');
+            
             let table = `<div class="kubectl-output">
                 <div class="kubectl-header">NAME             TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE</div>`;
             
-            if (!services || !Array.isArray(services)) {
+            if (!services || !Array.isArray(services) || services.length === 0) {
+                console.log('DEBUG getServicesTable - No services found, services is:', services);
                 table += `<div class="kubectl-row">No resources found</div>`;
                 table += `</div>`;
                 return table;
@@ -3951,29 +3959,39 @@ Events:            <none>
 
             const mappedResource = resourceMap[resource] || resource;
 
+            // Get cluster data for resources that need it
+            const clusterData = getClusterData();
+            console.log('Got cluster data:', clusterData);
+
             switch (mappedResource) {
                 case 'pods':
-                    return getPodsTable(outputJson, outputYaml, wide);
+                    if (outputYaml) {
+                        return outputJson ? getPodsJson(clusterData.pods) : getPodsYaml(clusterData.pods);
+                    }
+                    return getPodsTable(clusterData.pods);
                 case 'services':
-                    return getServicesTable();
+                    if (outputYaml) {
+                        return outputJson ? getServicesJson(clusterData.services) : getServicesYaml(clusterData.services);
+                    }
+                    return getServicesTable(clusterData.services);
                 case 'deployments':
-                    return getDeploymentsTable();
+                    return getDeploymentsTable(clusterData.deployments);
                 case 'replicasets':
-                    return getReplicaSetsTable();
+                    return getReplicaSetsTable(clusterData.replicasets);
                 case 'configmaps':
-                    return getConfigMapsTable();
+                    return getConfigMapsTable(clusterData.configmaps);
                 case 'secrets':
-                    return getSecretsTable();
+                    return getSecretsTable(clusterData.secrets);
                 case 'namespaces':
                     return getNamespacesTable();
                 case 'nodes':
-                    return getNodesTable();
+                    return getNodesTable(clusterData.nodes);
                 case 'persistentvolumes':
                     return getPersistentVolumesTable();
                 case 'persistentvolumeclaims':
                     return getPersistentVolumeClaimsTable();
                 case 'endpoints':
-                    return getEndpointsTable();
+                    return getEndpointsTable(clusterData);
                 default:
                     return `<div class="error-output">Error: the server doesn't have a resource type "${resource}"</div>`;
             }
@@ -3991,8 +4009,8 @@ Events:            <none>
                 if (!name) {
                     return '<div class="error-output">Error: You must specify pod name</div>';
                 }
-                const pods = getClusterPods();
-                const pod = pods.find(p => p.name === name);
+                const clusterData = getClusterData();
+                const pod = clusterData.pods.find(p => p.name === name);
                 if (!pod) {
                     return `<div class="error-output">Error: pods "${name}" not found</div>`;
                 }
@@ -4008,8 +4026,8 @@ Events:            <none>
             }
 
             const podName = parts[0];
-            const pods = getClusterPods();
-            const pod = pods.find(p => p.name === podName);
+            const clusterData = getClusterData();
+            const pod = clusterData.pods.find(p => p.name === podName);
             
             if (!pod) {
                 return `<div class="error-output">Error: pods "${podName}" not found</div>`;
