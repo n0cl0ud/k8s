@@ -1483,6 +1483,7 @@ spec:
     <!-- Integrated Terminal Tabs -->  
 
     <script>
+        console.log('Script starting...');
         let currentStep = 0;
         let isPlaying = false;
         let isPaused = false;
@@ -2537,9 +2538,8 @@ spec:
             }
         }
 
-        // kubectl Shell Implementation
-        let shellHistory = [];
-        let historyIndex = -1;
+        // kubectl Shell Implementation  
+        // Using terminalHistory and historyIndex already declared above
         let shellCommandIndex = 0;
 
         // Simulate cluster data based on current simulation state
@@ -2868,13 +2868,13 @@ spec:
             }
             
             function navigateHistory(direction) {
-                if (shellHistory.length === 0) return;
+                if (terminalHistory.length === 0) return;
                 
                 historyIndex += direction;
                 if (historyIndex < 0) historyIndex = 0;
-                if (historyIndex >= shellHistory.length) historyIndex = shellHistory.length - 1;
+                if (historyIndex >= terminalHistory.length) historyIndex = terminalHistory.length - 1;
                 
-                shellInput.value = shellHistory[historyIndex];
+                shellInput.value = terminalHistory[historyIndex];
             }
         }
 
@@ -2882,8 +2882,8 @@ spec:
             if (!command) return;
             
             // Add to history
-            shellHistory.unshift(command);
-            if (shellHistory.length > 50) shellHistory.pop();
+            terminalHistory.unshift(command);
+            if (terminalHistory.length > 50) terminalHistory.pop();
             historyIndex = -1;
             
             const kubectlContent = document.getElementById('kubectlContent');
