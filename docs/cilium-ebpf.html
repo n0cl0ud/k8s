@@ -1,0 +1,1390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cilium vs AWS VPC CNI - Security and Performance with eBPF</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 25%, #16213e 50%, #0f3460 75%, #533483 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 12s ease infinite;
+            color: #333;
+            overflow: hidden;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .presentation-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .slide {
+            width: 90%;
+            max-width: 1200px;
+            height: 85vh;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 25px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+            padding: 50px;
+            display: none;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .slide.active {
+            display: block;
+            animation: slideIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(50px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .slide h1 {
+            background: linear-gradient(135deg, #ff6b35, #00d4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 30px;
+            font-size: 2.8em;
+            text-align: center;
+            font-weight: 800;
+            text-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .slide h2 {
+            color: #1e293b;
+            margin: 30px 0 20px 0;
+            font-size: 1.9em;
+            font-weight: 700;
+            position: relative;
+        }
+
+        .slide h2::before {
+            content: '';
+            position: absolute;
+            left: -15px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 6px;
+            height: 30px;
+            background: linear-gradient(135deg, #6c63ff, #00d4ff);
+            border-radius: 3px;
+        }
+
+        .slide h3 {
+            color: #2d3436;
+            margin: 20px 0 15px 0;
+            font-size: 1.5em;
+            font-weight: 600;
+        }
+
+        .slide p, .slide li {
+            line-height: 1.7;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+            color: #2d3436;
+        }
+
+        .slide ul {
+            margin-left: 30px;
+            margin-bottom: 25px;
+        }
+
+        .slide li {
+            margin-bottom: 12px;
+            position: relative;
+        }
+
+        .slide li::marker {
+            color: #e17055;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .comparison-table th {
+            background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+            color: white;
+            padding: 18px;
+            text-align: left;
+            font-weight: 700;
+            font-size: 1.1em;
+        }
+
+        .comparison-table td {
+            padding: 15px 18px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .comparison-table tr:nth-child(even) {
+            background: linear-gradient(90deg, #f8f9fa, #e9ecef);
+        }
+
+        .comparison-table tr:hover {
+            background: linear-gradient(90deg, #fff5f5, #ffe8e8);
+            transform: scale(1.01);
+            transition: all 0.3s ease;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, #6c63ff, #00d4ff);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin: 25px 0;
+            box-shadow: 0 8px 25px rgba(108, 99, 255, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .highlight-box::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+            animation: shine 3s infinite;
+        }
+
+        @keyframes shine {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+
+        .highlight-box h3 {
+            color: white;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+        }
+
+        .performance-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 25px;
+            margin: 35px 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #00b894, #00cec9);
+            color: white;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 184, 148, 0.4);
+            position: relative;
+            overflow: hidden;
+            transform: perspective(1000px) rotateY(0deg);
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: perspective(1000px) rotateY(10deg) translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0, 184, 148, 0.6);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            animation: cardShine 2s infinite;
+        }
+
+        @keyframes cardShine {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .stat-card h4 {
+            font-size: 2.5em;
+            margin-bottom: 15px;
+            font-weight: 800;
+        }
+
+        .stat-card p {
+            font-size: 1em;
+            opacity: 0.95;
+            color: white;
+        }
+
+        .navigation {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            z-index: 1000;
+        }
+
+        .nav-btn {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: 700;
+            color: white;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(108, 92, 231, 0.4);
+        }
+
+        .nav-btn:hover {
+            background: linear-gradient(135deg, #5f3dc4, #7c3aed);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(108, 92, 231, 0.6);
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .slide-counter {
+            position: absolute;
+            top: 25px;
+            right: 35px;
+            background: linear-gradient(135deg, #ff6b35, #f7931e);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-size: 1em;
+            font-weight: 700;
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+        }
+
+        .logo {
+            position: absolute;
+            top: 25px;
+            left: 35px;
+            font-size: 1.4em;
+            font-weight: 900;
+            background: linear-gradient(135deg, #ff6b35, #00d4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .code-block {
+            background: linear-gradient(135deg, #1e293b, #334155);
+            color: #e2e8f0;
+            padding: 25px;
+            border-radius: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95em;
+            margin: 25px 0;
+            overflow-x: auto;
+            box-shadow: 0 8px 25px rgba(30, 41, 59, 0.4);
+            border-left: 5px solid #00d4ff;
+        }
+
+        .pros-cons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 35px 0;
+        }
+
+        .pros, .cons {
+            padding: 30px;
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pros {
+            background: linear-gradient(135deg, #00b894, #55efc4);
+            color: white;
+            box-shadow: 0 8px 25px rgba(0, 184, 148, 0.4);
+        }
+
+        .cons {
+            background: linear-gradient(135deg, #e17055, #fd79a8);
+            color: white;
+            box-shadow: 0 8px 25px rgba(225, 112, 85, 0.4);
+        }
+
+        .pros h4, .cons h4 {
+            margin-bottom: 20px;
+            font-size: 1.4em;
+            font-weight: 700;
+        }
+
+        .architecture-diagram {
+            background: linear-gradient(135deg, #74b9ff, #0984e3);
+            color: white;
+            border-radius: 15px;
+            padding: 35px;
+            margin: 25px 0;
+            text-align: center;
+            box-shadow: 0 8px 25px rgba(116, 185, 255, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .center-text {
+            text-align: center;
+        }
+
+        .eks-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #ff6b35, #f7931e);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+            margin: 0 10px;
+        }
+
+        .performance-diagram {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 30px 0;
+        }
+
+        .diagram-box {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            text-align: center;
+            position: relative;
+        }
+
+        .traditional-flow {
+            border-left: 5px solid #e17055;
+        }
+
+        .ebpf-flow {
+            border-left: 5px solid #00b894;
+        }
+
+        .flow-step {
+            background: #f8f9fa;
+            margin: 10px 0;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            position: relative;
+        }
+
+        .flow-arrow {
+            font-size: 1.5em;
+            color: #636e72;
+            margin: 5px 0;
+        }
+
+        .benchmark-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .benchmark-card {
+            background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 8px 25px rgba(108, 92, 231, 0.4);
+        }
+
+        .benchmark-card h5 {
+            font-size: 1.8em;
+            margin-bottom: 10px;
+            font-weight: 800;
+        }
+
+        .benchmark-card p {
+            color: white;
+            font-size: 0.9em;
+        }
+
+        .security-feature {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            margin: 10px 0;
+            display: inline-block;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="presentation-container">
+        
+        <!-- Slide 1: Title -->
+        <div class="slide active">
+            <div class="logo">🚀 eBPF Power</div>
+            <div class="slide-counter">1/10</div>
+            <div class="center-text" style="margin-top: 80px;">
+                <h1 style="font-size: 3.5em; margin-bottom: 30px;">Cilium vs AWS VPC CNI</h1>
+                <h2 style="color: #6c63ff; margin-bottom: 50px;">⚡ Supercharge your EKS with eBPF Performance ⚡</h2>
+                <div class="highlight-box">
+                    <h3>🎯 Why Traditional CNI is DEAD in 2025</h3>
+                    <p>Discover how Cilium obliterates AWS VPC CNI limitations with kernel-level networking magic!</p>
+                </div>
+                <div class="eks-badge">EKS Optimized</div>
+                <div class="eks-badge">Production Ready</div>
+                <div class="eks-badge">Zero Downtime</div>
+            </div>
+        </div>
+
+        <!-- Slide 2: What is Cilium? -->
+        <div class="slide">
+            <div class="logo">🚀 eBPF Power</div>
+            <div class="slide-counter">2/10</div>
+            <h1>What is Cilium? 🔥</h1>
+            
+            <div class="highlight-box">
+                <h3>🛡️ The Ultimate CNI Weapon for EKS</h3>
+                <p>Open-source networking & security solution that makes AWS VPC CNI look prehistoric!</p>
+            </div>
+
+            <h2>🚀 Game-Changing Features</h2>
+            <ul>
+                <li><strong>eBPF Native</strong>: Execute code in Linux kernel without overhead 🔥</li>
+                <li><strong>Bulletproof Security</strong>: Kernel-level policies that can't be bypassed 🛡️</li>
+                <li><strong>Real-time Observability</strong>: See EVERYTHING happening in your cluster 👁️</li>
+                <li><strong>Insane Performance</strong>: 10x faster than iptables-based solutions ⚡</li>
+                <li><strong>API-Aware</strong>: Understands HTTP, gRPC, Kafka protocols natively 🎯</li>
+            </ul>
+
+            <div class="performance-stats">
+                <div class="stat-card">
+                    <h4>🚀</h4>
+                    <p>Zero userspace<br>transitions</p>
+                </div>
+                <div class="stat-card">
+                    <h4>⚡</h4>
+                    <p>Kernel-level<br>execution</p>
+                </div>
+                <div class="stat-card">
+                    <h4>🛡️</h4>
+                    <p>Unbreakable<br>security</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: eBPF Revolution -->
+        <div class="slide">
+            <div class="logo">🚀 eBPF Power</div>
+            <div class="slide-counter">3/10</div>
+            <h1>eBPF: The Kernel Revolution! 🧠⚡</h1>
+
+            <div class="highlight-box">
+                <h3>🔬 Extended Berkeley Packet Filter = INSANE POWER</h3>
+                <p>Run verified programs directly in the Linux kernel - NO COMPROMISES!</p>
+            </div>
+
+            <h2>💥 Why eBPF DESTROYS Traditional Networking</h2>
+            <ul>
+                <li><strong>🎯 Zero-copy operations</strong>: Data never leaves kernel space</li>
+                <li><strong>🔒 Mathematically safe</strong>: Static verification prevents crashes</li>
+                <li><strong>⚡ Lightning speed</strong>: No syscall overhead EVER</li>
+                <li><strong>🧬 Infinitely flexible</strong>: Program ANY network behavior</li>
+                <li><strong>🔍 God-mode visibility</strong>: Access ALL kernel metrics</li>
+            </ul>
+
+            <div class="performance-stats">
+                <div class="stat-card">
+                    <h4>10X</h4>
+                    <p>Faster than<br>iptables</p>
+                </div>
+                <div class="stat-card">
+                    <h4>50%</h4>
+                    <p>Latency<br>reduction</p>
+                </div>
+                <div class="stat-card">
+                    <h4>0</h4>
+                    <p>Syscall<br>overhead</p>
+                </div>
+                <div class="stat-card">
+                    <h4>∞</h4>
+                    <p>Programmable<br>possibilities</p>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin: 30px 0;">
+                <div style="background: linear-gradient(135deg, #ff6b35, #ff3366); color: white; padding: 25px; border-radius: 15px;">
+                    <h4 style="color: white; margin-bottom: 15px; text-align: center;">🐌 Traditional Networking Stack</h4>
+                    <div style="text-align: center;">
+                        <div style="background: rgba(255,255,255,0.2); padding: 10px; margin: 8px 0; border-radius: 8px;">📦 Packet arrives</div>
+                        <div style="color: #ffb3ba;">⬇️ Context switch</div>
+                        <div style="background: rgba(255,255,255,0.2); padding: 10px; margin: 8px 0; border-radius: 8px;">🔥 iptables rules</div>
+                        <div style="color: #ffb3ba;">⬇️ Memory copy</div>
+                        <div style="background: rgba(255,255,255,0.2); padding: 10px; margin: 8px 0; border-radius: 8px;">👤 Userspace processing</div>
+                        <div style="color: #ffb3ba;">⬇️ Another context switch</div>
+                        <div style="background: rgba(255,255,255,0.2); padding: 10px; margin: 8px 0; border-radius: 8px;">🎯 Application</div>
+                    </div>
+                    <div style="text-align: center; margin-top: 15px; color: #ffb3ba;">
+                        <strong>Multiple hops = HIGH LATENCY</strong>
+                    </div>
+                </div>
+
+                <div style="background: linear-gradient(135deg, #00d7ff, #0099cc); color: white; padding: 25px; border-radius: 15px;">
+                    <h4 style="color: white; margin-bottom: 15px; text-align: center;">⚡ eBPF Direct Path</h4>
+                    <div style="text-align: center;">
+                        <div style="background: rgba(255,255,255,0.2); padding: 10px; margin: 8px 0; border-radius: 8px;">📦 Packet arrives</div>
+                        <div style="color: #baffc9;">⚡ XDP Hook</div>
+                        <div style="background: rgba(255,255,255,0.2); padding: 15px; margin: 12px 0; border-radius: 8px; border: 2px solid rgba(255,255,255,0.4);">
+                            <strong>🧠 eBPF Program</strong><br>
+                            <span style="font-size: 0.9em;">Policy + Routing + Security</span><br>
+                            <span style="font-size: 0.8em;">ALL IN KERNEL</span>
+                        </div>
+                        <div style="color: #baffc9;">⚡ Direct delivery</div>
+                        <div style="background: rgba(255,255,255,0.2); padding: 10px; margin: 8px 0; border-radius: 8px;">🎯 Application</div>
+                    </div>
+                    <div style="text-align: center; margin-top: 15px; color: #baffc9;">
+                        <strong>ZERO HOPS = BLAZING FAST</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: AWS VPC CNI Limitations -->
+        <div class="slide">
+            <div class="logo">🚀 eBPF Power</div>
+            <div class="slide-counter">4/10</div>
+            <h1>AWS VPC CNI: The Bottleneck 🐌</h1>
+
+            <h2>📉 Traditional EKS Architecture Problems</h2>
+            <ul>
+                <li><strong>ENI Dependency</strong>: Limited IPs per EC2 instance 😵</li>
+                <li><strong>No NetworkPolicies</strong>: Security Groups only = coarse-grained 🚫</li>
+                <li><strong>Linux Bridge Overhead</strong>: Multiple userspace transitions 🐌</li>
+                <li><strong>iptables Hell</strong>: Rules grow exponentially with pods 💀</li>
+                <li><strong>Zero Observability</strong>: Black box networking 🕳️</li>
+            </ul>
+
+            <div class="performance-diagram">
+                <div class="diagram-box traditional-flow">
+                    <h4 style="color: #e17055;">❌ AWS VPC CNI Flow</h4>
+                    <div class="flow-step">📦 Packet arrives at ENI</div>
+                    <div class="flow-arrow">⬇️</div>
+                    <div class="flow-step">🌉 Linux bridge processing</div>
+                    <div class="flow-arrow">⬇️</div>
+                    <div class="flow-step">🔥 iptables chain traversal</div>
+                    <div class="flow-arrow">⬇️</div>
+                    <div class="flow-step">👤 Userspace context switches</div>
+                    <div class="flow-arrow">⬇️</div>
+                    <div class="flow-step">🎯 Finally reaches pod</div>
+                    <p style="color: #e17055; font-weight: bold; margin-top: 15px;">Multiple hops = HIGH LATENCY!</p>
+                </div>
+
+                <div class="diagram-box ebpf-flow">
+                    <h4 style="color: #00b894;">✅ Cilium eBPF Flow</h4>
+                    <div class="flow-step">📦 XDP packet processing</div>
+                    <div class="flow-arrow">⚡</div>
+                    <div class="flow-step">🧠 Kernel-level decisions</div>
+                    <div class="flow-arrow">⚡</div>
+                    <div class="flow-step">🎯 Direct pod delivery</div>
+                    <p style="color: #00b894; font-weight: bold; margin-top: 15px;">ZERO HOPS = BLAZING FAST!</p>
+                </div>
+            </div>
+
+            <div class="cons">
+                <h4>💀 AWS VPC CNI Death by a Thousand Cuts</h4>
+                <ul>
+                    <li>ENI IP exhaustion kills scalability</li>
+                    <li>Security Groups can't do pod-to-pod policies</li>
+                    <li>No application-layer awareness</li>
+                    <li>Debugging is PAINFUL</li>
+                    <li>Performance degrades with scale</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Slide 5: Security Showdown -->
+        <div class="slide">
+            <div class="logo">🚀 eBPF Power</div>
+            <div class="slide-counter">5/10</div>
+            <h1>Security Showdown: Cilium DOMINATES! 🛡️⚔️</h1>
+
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Security Feature</th>
+                        <th>❌ AWS VPC CNI</th>
+                        <th>✅ Cilium eBPF</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Network Policies</strong></td>
+                        <td>Security Groups (instance-level) 🐌</td>
+                        <td>Kubernetes NetworkPolicies + Cilium policies 🎯</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Granularity</strong></td>
+                        <td>Instance/Subnet only 📦</td>
+                        <td>Pod/Service/Endpoint/Identity 🔬</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Protocol Awareness</strong></td>
+                        <td>L3/L4 only 😑</td>
+                        <td>HTTP, gRPC, Kafka, DNS 🧠</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Identity System</strong></td>
+                        <td>IP-based (fragile) 💀</td>
+                        <td>Labels, ServiceAccounts, X.509 🔐</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Encryption</strong></td>
+                        <td>Manual TLS setup 😵</td>
+                        <td>Transparent IPSec/WireGuard ⚡</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Zero Trust</strong></td>
+                        <td>Manual nightmare 🔥</td>
+                        <td>Automatic micro-segmentation 🛡️</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 30px 0;">
+                <div class="security-feature">🔒 Identity-based policies</div>
+                <div class="security-feature">🛡️ L7 traffic filtering</div>
+                <div class="security-feature">🔐 Transparent encryption</div>
+                <div class="security-feature">🎯 API-aware security</div>
+                <div class="security-feature">⚡ Real-time threat detection</div>
+                <div class="security-feature">🔍 Security event monitoring</div>
+            </div>
+
+            <div class="highlight-box">
+                <h3>🔥 Cilium Security = FORTRESS-LEVEL PROTECTION</h3>
+                <p><strong>Traditional firewalls protect the castle walls.</strong><br>
+                <strong>Cilium eBPF protects every room, every conversation, every byte!</strong><br>
+                <em>Not perfect, but damn close to it! 🎯</em></p>
+            </div>
+        </div>
+
+        <!-- Slide 6: Performance Demolition -->
+        <div class="slide">
+            <div class="logo">🚀 eBPF Power</div>
+            <div class="slide-counter">6/10</div>
+            <h1>Performance: Cilium OBLITERATES AWS CNI! ⚡💥</h1>
+
+            <div class="benchmark-grid">
+                <div class="benchmark-card">
+                    <h5>~1M</h5>
+                    <p>Req/sec TCP_RR<br><em>synthetic benchmark</em></p>
+                </div>
+                <div class="benchmark-card">
+                    <h5>40%+</h5>
+                    <p>Real performance<br><em>Trendyol production</em></p>
+                </div>
+                <div class="benchmark-card">
+                    <h5>3x</h5>
+                    <p>More pods/node<br><em>vs ENI limits</em></p>
+                </div>
+                <div class="benchmark-card">
+                    <h5>0ms</h5>
+                    <p>Policy delay<br><em>vs 5-15min AWS</em></p>
+                </div>
+            </div>
+
+            <h2>🔥 eBPF Performance Optimizations (Verified)</h2>
+            <ul>
+                <li><strong>⚡ XDP (eXpress Data Path)</strong>: Process packets before kernel stack</li>
+                <li><strong>🚀 TC (Traffic Control)</strong>: Skip netfilter completely</li>
+                <li><strong>💨 Zero-copy networking</strong>: Data never leaves kernel</li>
+                <li><strong>🧠 JIT compilation</strong>: eBPF compiled to native CPU instructions</li>
+                <li><strong>🗑️ Bypass iptables</strong>: No more rule chain traversal</li>
+            </ul>
+            <p style="font-size: 0.9em; color: #636e72; margin-top: 20px;">
+                <em>Performance data from Cilium official benchmarks (docs.cilium.io/operations/performance/benchmark)</em>
+            </p>
+
+            <div class="performance-diagram">
+                <div class="diagram-box traditional-flow">
+                    <h4 style="color: #e17055;">🐌 Traditional IPSec/iptables</h4>
+                    <div class="flow-step">Packet → Kernel → iptables</div>
+                    <div class="flow-step">→ Userspace crypto → Kernel</div>
+                    <div class="flow-step">→ Encryption → Network</div>
+                    <p style="color: #e17055; margin-top: 10px;"><strong>4-6 context switches!</strong></p>
+                </div>
+
+                <div class="diagram-box ebpf-flow">
+                    <h4 style="color: #00b894;">⚡ Cilium eBPF</h4>
+                    <div class="flow-step">Packet → eBPF program</div>
+                    <div class="flow-step">→ Kernel crypto → Network</div>
+                    <p style="color: #00b894; margin-top: 10px;"><strong>Zero context switches!</strong></p>
+                </div>
+            </div>
+
+            <div class="highlight-box">
+                <h3>🏎️ Production-Grade Performance Benefits</h3>
+                <p><strong>Real workload improvements:</strong> 40%+ network performance boost (Trendyol production)<br>
+                <strong>Operational benefits:</strong> NetworkPolicies that actually work, real-time observability<br>
+                <strong>Traditional CNI limitations:</strong> No Kubernetes NetworkPolicies, limited observability, iptables scaling issues<br>
+                <strong>Cilium advantages:</strong> Identity-based security, L7 visibility, better pod density per node<br>
+                <strong>Trade-offs:</strong> Higher memory usage (eBPF maps), increased complexity vs traditional tools</p>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin: 30px 0;">
+                <div style="background: linear-gradient(135deg, #e17055, #fd79a8); color: white; padding: 25px; border-radius: 15px;">
+                    <h4 style="color: white; margin-bottom: 15px;">🐌 AWS VPC CNI Bottlenecks</h4>
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 10px 0;">
+                        <strong>iptables connection tracking</strong><br>
+                        <span style="font-size: 0.9em;">Performance degrades with new connections</span>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 10px 0;">
+                        <strong>Linear rule processing</strong><br>
+                        <span style="font-size: 0.9em;">Each packet traverses all rules</span>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 10px 0;">
+                        <strong>Multiple userspace hops</strong><br>
+                        <span style="font-size: 0.9em;">Context switches kill performance</span>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.2); padding: 10px; border-radius: 8px; margin-top: 15px; text-align: center;">
+                        <strong>❌ TCP_RR Performance: Limited by iptables</strong>
+                    </div>
+                </div>
+
+                <div style="background: linear-gradient(135deg, #00b894, #55efc4); color: white; padding: 25px; border-radius: 15px;">
+                    <h4 style="color: white; margin-bottom: 15px;">⚡ Cilium eBPF Advantages</h4>
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 10px 0;">
+                        <strong>Test Setup:</strong><br>
+                        <span style="font-size: 0.9em;">32 parallel connections, request-response cycles<br>
+                        Simulates microservice API communication patterns</span>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 10px 0;">
+                        <strong>~1M requests/sec achieved</strong><br>
+                        <span style="font-size: 0.9em;">With only 30% CPU usage on both ends</span>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 10px 0;">
+                        <strong>Zero iptables traversal</strong><br>
+                        <span style="font-size: 0.9em;">Direct kernel eBPF processing</span>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.2); padding: 10px; border-radius: 8px; margin-top: 15px; text-align: center;">
+                        <strong>✅ TCP_RR Performance: Kernel-level speed</strong>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="background: linear-gradient(135deg, #6c5ce7, #a29bfe); color: white; padding: 20px; border-radius: 15px; margin: 20px 0;">
+                <h4 style="color: white; margin-bottom: 10px;">🎯 Why TCP_RR Matters for EKS Microservices</h4>
+                <p style="color: white; font-size: 0.95em; margin: 0;">
+                    <strong>High-frequency API calls:</strong> Payment processing, real-time data, user authentication<br>
+                    <strong>Microservice mesh:</strong> Service-to-service communication patterns<br>
+                    <strong>Auto-scaling scenarios:</strong> New connections under load = where iptables struggles most
+                </p>
+            </div>
+        </div>
+
+        <!-- Slide 7: BBR + eBPF Performance Combo -->
+        <div class="slide">
+            <div class="logo">🚀 eBPF Power</div>
+            <div class="slide-counter">7/11</div>
+            <h1>Secret Weapon: BBR + eBPF = INSANE Performance! 🚀💥</h1>
+
+            <div class="highlight-box">
+                <h3>🎯 The Ultimate Performance Stack</h3>
+                <p>Combine Google's BBR congestion control with Cilium eBPF for network performance that breaks physics!</p>
+            </div>
+
+            <h2>🧠 What is BBR (Bottleneck Bandwidth and Round-trip propagation time)?</h2>
+            <ul>
+                <li><strong>🎯 Smart TCP congestion control</strong>: Measures actual network capacity</li>
+                <li><strong>📊 Data-driven decisions</strong>: No more guessing about network conditions</li>
+                <li><strong>🌐 WAN optimized</strong>: Perfect for cloud-to-cloud traffic</li>
+                <li><strong>📈 Adaptive bandwidth</strong>: Maximizes throughput while minimizing latency</li>
+            </ul>
+
+            <div class="performance-diagram">
+                <div class="diagram-box traditional-flow">
+                    <h4 style="color: #e17055;">🐌 Traditional TCP Cubic</h4>
+                    <div class="flow-step">Loss-based congestion control</div>
+                    <div class="flow-arrow">⬇️</div>
+                    <div class="flow-step">High latency, buffer bloat</div>
+                    <div class="flow-arrow">⬇️</div>
+                    <div class="flow-step">Poor WAN performance</div>
+                    <p style="color: #e17055; font-weight: bold; margin-top: 15px;">Reactive = SLOW!</p>
+                </div>
+
+                <div class="diagram-box ebpf-flow">
+                    <h4 style="color: #00b894;">⚡ BBR + eBPF Optimization</h4>
+                    <div class="flow-step">Proactive bandwidth estimation</div>
+                    <div class="flow-arrow">⚡</div>
+                    <div class="flow-step">eBPF kernel-level optimization</div>
+                    <div class="flow-arrow">⚡</div>
+                    <div class="flow-step">Maximum throughput achieved</div>
+                    <p style="color: #00b894; font-weight: bold; margin-top: 15px;">Predictive = BLAZING!</p>
+                </div>
+            </div>
+
+            <div class="benchmark-grid">
+                <div class="benchmark-card">
+                    <h5>2-25X</h5>
+                    <p>Better throughput<br><em>Google B4 data</em></p>
+                </div>
+                <div class="benchmark-card">
+                    <h5>2-6%</h5>
+                    <p>Response time<br><em>improvement</em></p>
+                </div>
+                <div class="benchmark-card">
+                    <h5>100%</h5>
+                    <p>Maintains throughput<br><em>under packet loss</em></p>
+                </div>
+                <div class="benchmark-card">
+                    <h5>98%</h5>
+                    <p>Time in optimal<br><em>ProbeBW state</em></p>
+                </div>
+            </div>
+
+            <h2>🔥 Why BBR + Cilium eBPF = Perfect for EKS</h2>
+            <ul>
+                <li><strong>⚡ Multi-AZ communication</strong>: BBR handles latency + packet loss like a champ</li>
+                <li><strong>🎯 Per-connection intelligence</strong>: eBPF programs tune BBR parameters in real-time</li>
+                <li><strong>🌐 Cross-region clusters</strong>: Perfect for distributed microservice calls</li>
+                <li><strong>📊 Zero userspace overhead</strong>: All optimization happens in kernel</li>
+                <li><strong>🚀 Database replication</strong>: MongoDB, PostgreSQL clusters love this combo</li>
+                <li><strong>🔧 Auto-optimization</strong>: Cilium eBPF dynamically adjusts BBR settings</li>
+            </ul>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin: 30px 0;">
+                <div style="background: linear-gradient(135deg, #6c5ce7, #a29bfe); color: white; padding: 25px; border-radius: 15px;">
+                    <h4 style="color: white; margin-bottom: 15px;">🔧 Enable BBR on EKS Nodes</h4>
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 10px 0; font-family: monospace;">
+                        <strong>echo 'net.core.default_qdisc=fq' >> /etc/sysctl.conf</strong>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 10px 0; font-family: monospace;">
+                        <strong>echo 'net.ipv4.tcp_congestion_control=bbr' >> /etc/sysctl.conf</strong>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 10px 0; font-family: monospace;">
+                        <strong>sysctl -p</strong>
+                    </div>
+                </div>
+
+                <div style="background: linear-gradient(135deg, #00b894, #55efc4); color: white; padding: 25px; border-radius: 15px;">
+                    <h4 style="color: white; margin-bottom: 15px;">✅ Verify BBR Status</h4>
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 10px 0; font-family: monospace;">
+                        <strong>ss -i | grep bbr</strong>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 10px 0; font-size: 0.9em;">
+                        <strong>bbr wscale:7,7 rto:204 rtt:3.5/1.5</strong>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 10px 0;">
+                        <strong>🚀 Cilium eBPF auto-optimizes BBR!</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div style="background: linear-gradient(135deg, #2d3436, #636e72); color: white; padding: 25px; border-radius: 15px; margin: 30px 0;">
+                <h4 style="color: #00d4ff; margin-bottom: 15px;">🔍 Understanding BBR Connection Status</h4>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div style="background: rgba(225, 112, 85, 0.2); padding: 15px; border-radius: 10px;">
+                        <h5 style="color: #fd79a8; margin-bottom: 10px;">❌ CUBIC (Traditional)</h5>
+                        <div style="font-family: monospace; font-size: 0.9em; margin-bottom: 10px;">
+                            <strong>cubic wscale:8,7 rto:1000 rtt:15/8.5</strong>
+                        </div>
+                        <ul style="font-size: 0.85em; margin-left: 15px;">
+                            <li><strong>rto:1000</strong> = 1s retransmit timeout</li>
+                            <li><strong>rtt:15/8.5</strong> = high latency + jitter</li>
+                            <li>Loss-based = reactive approach</li>
+                        </ul>
+                    </div>
+                    
+                    <div style="background: rgba(0, 184, 148, 0.2); padding: 15px; border-radius: 10px;">
+                        <h5 style="color: #55efc4; margin-bottom: 10px;">✅ BBR (Optimized)</h5>
+                        <div style="font-family: monospace; font-size: 0.9em; margin-bottom: 10px;">
+                            <strong>bbr wscale:7,7 rto:204 rtt:3.5/1.5</strong>
+                        </div>
+                        <ul style="font-size: 0.85em; margin-left: 15px;">
+                            <li><strong>rto:204</strong> = 204ms fast recovery</li>
+                            <li><strong>rtt:3.5/1.5</strong> = low latency + stable</li>
+                            <li>Model-based = proactive approach</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div style="text-align: center; margin-top: 15px; padding: 10px; background: rgba(0, 212, 255, 0.2); border-radius: 8px;">
+                    <strong>BBR maintains 5x faster recovery + 4x lower latency!</strong>
+                </div>
+            </div>
+
+
+
+            <div style="background: linear-gradient(135deg, #74b9ff, #0984e3); color: white; padding: 30px; border-radius: 15px; margin: 30px 0;">
+                <h4 style="color: white; margin-bottom: 20px;">🎯 Real-World BBR Test Scenario (Google B4 + Industry Data)</h4>
+                
+                <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                    <h5 style="color: white; margin-bottom: 15px;">🧪 Test Setup: High-Latency Link with Packet Loss</h5>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 0.9em;">
+                        <div>
+                            <strong>Network conditions:</strong><br>
+                            • 140ms round-trip latency<br>
+                            • 1.5% packet loss introduced<br>
+                            • 30-second iperf test
+                        </div>
+                        <div>
+                            <strong>Why this matters:</strong><br>
+                            • Simulates multi-AZ EKS traffic<br>
+                            • Real-world WAN conditions<br>
+                            • Transit provider packet loss
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div style="background: rgba(225, 112, 85, 0.3); padding: 20px; border-radius: 10px;">
+                        <h5 style="color: #ffb3ba; margin-bottom: 15px;">❌ CUBIC (Loss-Based Control)</h5>
+                        <div style="margin-bottom: 15px;">
+                            <strong>347 Mbps → 1.23 Mbps</strong><br>
+                            <span style="font-size: 0.9em; color: #ffb3ba;">99.5% throughput drop!</span>
+                        </div>
+                        <div style="font-size: 0.85em;">
+                            <strong>Why CUBIC fails:</strong><br>
+                            • Interprets packet loss as congestion<br>
+                            • Reduces sending rate aggressively<br>
+                            • Takes time to recover<br>
+                            • Link becomes unusable
+                        </div>
+                    </div>
+                    
+                    <div style="background: rgba(0, 184, 148, 0.3); padding: 20px; border-radius: 10px;">
+                        <h5 style="color: #baffc9; margin-bottom: 15px;">✅ BBR (Model-Based Control)</h5>
+                        <div style="margin-bottom: 15px;">
+                            <strong>347 Mbps → 340 Mbps</strong><br>
+                            <span style="font-size: 0.9em; color: #baffc9;">Maintains performance!</span>
+                        </div>
+                        <div style="font-size: 0.85em;">
+                            <strong>Why BBR succeeds:</strong><br>
+                            • Measures actual bandwidth + RTT<br>
+                            • Doesn't panic on packet loss<br>
+                            • Maintains optimal sending rate<br>
+                            • Link remains fully usable
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="text-align: center; margin-top: 20px; padding: 15px; background: rgba(255, 107, 53, 0.2); border-radius: 10px;">
+                    <strong>This is why Google B4 network achieved 2-25x better throughput with BBR!</strong><br>
+                    <em style="font-size: 0.9em;">Sources: TCP BBR - Exploring TCP congestion control (Medium), Google ACM Queue</em>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 8: Observability Superpowers -->
+        <div class="slide">
+            <div class="logo">🚀 eBPF Power</div>
+            <div class="slide-counter">7/10</div>
+            <h1>Observability: X-Ray Vision for EKS! 👁️🔍</h1>
+
+            <div class="highlight-box">
+                <h3>🔬 Hubble: The Network Telescope</h3>
+                <p>See EVERYTHING in your EKS cluster - no blind spots, no delays, no guessing!</p>
+            </div>
+
+            <h2>🎯 Cilium Observability Arsenal</h2>
+            <ul>
+                <li><strong>🌊 Real-time flow monitoring</strong>: Every packet, every connection traced</li>
+                <li><strong>🗺️ Automatic service maps</strong>: Dependencies discovered instantly</li>
+                <li><strong>🚨 Security event streams</strong>: Intrusions detected at wire speed</li>
+                <li><strong>📊 L7 protocol metrics</strong>: HTTP, gRPC, Kafka without instrumentation</li>
+                <li><strong>🔍 Kernel-level insights</strong>: See what userspace can't</li>
+            </ul>
+
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Observability Feature</th>
+                        <th>❌ AWS VPC CNI</th>
+                        <th>✅ Cilium Hubble</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Flow Visibility</strong></td>
+                        <td>VPC Flow Logs (5-15min delay) 🐌</td>
+                        <td>Real-time microsecond precision ⚡</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Service Discovery</strong></td>
+                        <td>Manual configuration 😑</td>
+                        <td>Automatic service maps 🗺️</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Security Events</strong></td>
+                        <td>CloudTrail logs (delayed) 📝</td>
+                        <td>Real-time threat alerts 🚨</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Application Protocols</strong></td>
+                        <td>Nothing ❌</td>
+                        <td>HTTP, DNS, gRPC, Kafka 🎯</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Troubleshooting</strong></td>
+                        <td>Guess and pray 🙏</td>
+                        <td>Surgical precision 🔬</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="performance-stats">
+                <div class="stat-card">
+                    <h4>👁️</h4>
+                    <p>100% network<br>visibility</p>
+                </div>
+                <div class="stat-card">
+                    <h4>⚡</h4>
+                    <p>Real-time<br>monitoring</p>
+                </div>
+                <div class="stat-card">
+                    <h4>🎯</h4>
+                    <p>Zero-config<br>L7 metrics</p>
+                </div>
+                <div class="stat-card">
+                    <h4>🔍</h4>
+                    <p>Kernel-level<br>insights</p>
+                </div>
+            </div>
+
+            <div style="background: linear-gradient(135deg, #2d3436, #636e72); color: white; padding: 30px; border-radius: 15px; margin: 25px 0; box-shadow: 0 8px 25px rgba(45, 52, 54, 0.3);">
+                                    <h4 style="color: #00d4ff; margin-bottom: 20px; border-left: 5px solid #00d4ff; padding-left: 15px;">🔍 Hubble CLI: Real-Time Network Observability</h4>
+                
+                <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 10px; margin: 15px 0; font-family: 'Courier New', monospace; font-size: 0.85em;">
+                    <div style="color: #55efc4; margin-bottom: 15px;">$ hubble observe --follow --namespace default</div>
+                    
+                    <div style="border-left: 3px solid #00b894; padding-left: 15px; margin: 15px 0;">
+                        <div style="color: #ddd; margin-bottom: 5px;"><strong>10:23:45.123</strong></div>
+                        <div style="color: #74b9ff;"><strong>frontend-7d4f8</strong></div>
+                        <div style="color: #fd79a8;">    ↓ HTTP GET /api/users</div>
+                        <div style="color: #55efc4;"><strong>backend-5c8a2</strong></div>
+                        <div style="color: #00cec9; font-size: 0.9em;">    ✅ 200 OK (45ms response time)</div>
+                    </div>
+                    
+                    <div style="border-left: 3px solid #6c5ce7; padding-left: 15px; margin: 15px 0;">
+                        <div style="color: #ddd; margin-bottom: 5px;"><strong>10:23:45.178</strong></div>
+                        <div style="color: #55efc4;"><strong>backend-5c8a2</strong></div>
+                        <div style="color: #fd79a8;">    ↓ TCP CONNECT :5432</div>
+                        <div style="color: #74b9ff;"><strong>database-9f1b6</strong></div>
+                        <div style="color: #00cec9; font-size: 0.9em;">    ✅ ALLOWED by NetworkPolicy</div>
+                    </div>
+                    
+                    <div style="border-left: 3px solid #e17055; padding-left: 15px; margin: 15px 0;">
+                        <div style="color: #ddd; margin-bottom: 5px;"><strong>10:23:45.223</strong></div>
+                        <div style="color: #fd79a8;"><strong>suspicious-pod</strong></div>
+                        <div style="color: #e17055;">    ↓ HTTP POST /admin</div>
+                        <div style="color: #55efc4;"><strong>frontend-7d4f8</strong></div>
+                        <div style="color: #ff6b6b; font-size: 0.9em;">    ❌ 403 DENIED by L7 policy</div>
+                    </div>
+                    
+                    <div style="border-left: 3px solid #fdcb6e; padding-left: 15px; margin: 15px 0;">
+                        <div style="color: #ddd; margin-bottom: 5px;"><strong>10:23:45.267</strong></div>
+                        <div style="color: #74b9ff;"><strong>frontend-7d4f8</strong></div>
+                        <div style="color: #fd79a8;">    ↓ DNS query kubernetes.io</div>
+                        <div style="color: #fdcb6e;"><strong>external-dns</strong></div>
+                        <div style="color: #00cec9; font-size: 0.9em;">    ✅ A record resolved (12ms)</div>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 20px;">
+                    <div style="background: rgba(0, 184, 148, 0.2); padding: 15px; border-radius: 8px; text-align: center;">
+                        <strong style="color: #00d4ff;">✅ Allowed Traffic</strong><br>
+                        <span style="font-size: 0.85em;">HTTP, TCP, DNS</span>
+                    </div>
+                    <div style="background: rgba(255, 107, 107, 0.2); padding: 15px; border-radius: 8px; text-align: center;">
+                        <strong style="color: #ff6b6b;">❌ Policy Violations</strong><br>
+                        <span style="font-size: 0.85em;">Real-time alerts</span>
+                    </div>
+                    <div style="background: rgba(116, 185, 255, 0.2); padding: 15px; border-radius: 8px; text-align: center;">
+                        <strong style="color: #74b9ff;">⚡ Performance</strong><br>
+                        <span style="font-size: 0.85em;">Response times</span>
+                    </div>
+                </div>
+                
+                <div style="text-align: center; margin-top: 20px; padding: 15px; background: rgba(0, 206, 201, 0.2); border-radius: 10px;">
+                    <strong style="color: #00d4ff;">Zero instrumentation - eBPF captures everything at kernel level! 🚀</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 9: EKS Migration Strategy -->
+        <div class="slide">
+            <div class="logo">🚀 eBPF Power</div>
+            <div class="slide-counter">9/11</div>
+            <h1>EKS Migration: Zero-Downtime Transformation! 🔄⚡</h1>
+
+            <div class="highlight-box">
+                <h3>🎯 Battle-Tested Migration for Production EKS</h3>
+                <p>Migrate from AWS VPC CNI to Cilium without dropping a single packet!</p>
+            </div>
+
+            <h2>🚀 Perfect Use Cases for EKS + Cilium</h2>
+            <ul>
+                <li><strong>🏦 High-frequency trading</strong>: Every microsecond counts</li>
+                <li><strong>🎮 Gaming platforms</strong>: Low latency multiplayer</li>
+                <li><strong>🤖 ML/AI workloads</strong>: High-throughput data pipelines</li>
+                <li><strong>💳 Payment processing</strong>: PCI-DSS compliance made easy</li>
+                <li><strong>📱 Mobile backends</strong>: Scale to millions of users</li>
+                <li><strong>🌐 API gateways</strong>: Handle massive request volumes</li>
+            </ul>
+
+            <div class="performance-diagram">
+                <div class="diagram-box">
+                    <h4 style="color: #6c5ce7;">📋 4-Phase Migration Plan</h4>
+                    <div class="flow-step"><strong>Phase 1:</strong> Dev/Test clusters validation</div>
+                    <div class="flow-arrow">⬇️</div>
+                    <div class="flow-step"><strong>Phase 2:</strong> Staging with full monitoring</div>
+                    <div class="flow-arrow">⬇️</div>
+                    <div class="flow-step"><strong>Phase 3:</strong> Canary production rollout</div>
+                    <div class="flow-arrow">⬇️</div>
+                    <div class="flow-step"><strong>Phase 4:</strong> Complete production migration</div>
+                </div>
+            </div>
+
+            <div class="pros-cons">
+                <div class="pros">
+                    <h4>✅ Instant Benefits on EKS</h4>
+                    <ul>
+                        <li>NetworkPolicies finally work!</li>
+                        <li>50% better pod density per node</li>
+                        <li>Real-time security monitoring</li>
+                        <li>Zero-config service mesh</li>
+                        <li>Automatic encryption everywhere</li>
+                        <li>BBR congestion control ready</li>
+                    </ul>
+                </div>
+                <div class="cons">
+                    <h4>⚠️ Migration Considerations</h4>
+                    <ul>
+                        <li>Linux kernel ≥ 4.9 (EKS default is fine)</li>
+                        <li>Updated monitoring dashboards</li>
+                        <li>Security policy review</li>
+                        <li>Load testing validation</li>
+                        <li>Backup & rollback planning</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="center-text" style="margin-top: 40px;">
+                <h2 style="color: #6c63ff;">Ready for Production Migration! 🚀</h2>
+                <p style="font-size: 1.2em; margin-top: 20px;">
+                    <strong>Cilium is battle-tested across thousands of production clusters<br>
+                    The migration path is well-documented and proven!</strong>
+                </p>
+            </div>
+        </div>
+
+        <!-- Slide 10: ROI & Business Impact -->
+        <div class="slide">
+            <div class="logo">🚀 eBPF Power</div>
+            <div class="slide-counter">10/11</div>
+            <h1>ROI: Cilium Pays for Itself! 💰📈</h1>
+
+            <div class="highlight-box">
+                <h3>💵 Calculate Your Cilium ROI on EKS</h3>
+                <p>Real numbers from production deployments - the business case writes itself!</p>
+            </div>
+
+            <div class="benchmark-grid">
+                <div class="benchmark-card">
+                    <h5>40%</h5>
+                    <p>Network performance<br><em>Trendyol case study</em></p>
+                </div>
+                <div class="benchmark-card">
+                    <h5>1000+</h5>
+                    <p>Organizations<br><em>in production</em></p>
+                </div>
+                <div class="benchmark-card">
+                    <h5>3</h5>
+                    <p>Major cloud providers<br><em>AWS, GCP, Azure</em></p>
+                </div>
+                <div class="benchmark-card">
+                    <h5>5+</h5>
+                    <p>Years production<br><em>proven stability</em></p>
+                </div>
+            </div>
+
+            <h2>🎯 Real-World Business Impact (Verified Case Studies)</h2>
+            <ul>
+                <li><strong>💰 Performance Gains</strong>: Trendyol achieved 40+ network performance improvement<sup>[1]</sup></li>
+                <li><strong>⚡ Operational Efficiency</strong>: Bloomberg secured BQuant Enterprise data access<sup>[2]</sup></li>
+                <li><strong>🛡️ Enterprise Security</strong>: All major cloud providers adopted Cilium as default<sup>[3]</sup></li>
+                <li><strong>📊 Cloud Native Standard</strong>: AWS EKS, Google GKE, Azure AKS all use Cilium<sup>[4]</sup></li>
+                <li><strong>🚀 Industry Adoption</strong>: 1000+ organizations, 14K+ GitHub stars<sup>[5]</sup></li>
+                <li><strong>✅ Production Ready</strong>: 5+ years in production without major incidents<sup>[6]</sup></li>
+            </ul>
+
+            <div class="performance-diagram">
+                <div class="diagram-box traditional-flow">
+                    <h4 style="color: #e17055;">📉 Traditional CNI Challenges</h4>
+                    <div class="flow-step">AWS API rate limiting issues</div>
+                    <div class="flow-step">No NetworkPolicies support</div>
+                    <div class="flow-step">kube-proxy/iptables bottlenecks</div>
+                    <div class="flow-step">Limited observability</div>
+                    <div class="flow-step">Performance degradation at scale</div>
+                    <p style="color: #e17055; font-weight: bold; margin-top: 15px;">Real problems from Meltwater case study!</p>
+                </div>
+
+                <div class="diagram-box ebpf-flow">
+                    <h4 style="color: #00b894;">📈 Cilium Verified Benefits</h4>
+                    <div class="flow-step">40%+ network performance boost</div>
+                    <div class="flow-step">Identity-based security policies</div>
+                    <div class="flow-step">Real-time network observability</div>
+                    <div class="flow-step">Data egress protection</div>
+                    <div class="flow-step">Unlimited scale with eBPF</div>
+                    <p style="color: #00b894; font-weight: bold; margin-top: 15px;">Proven results from Trendyol!</p>
+                </div>
+            </div>
+
+            <div style="background: linear-gradient(135deg, #6c5ce7, #a29bfe); color: white; padding: 25px; border-radius: 15px; margin: 30px 0;">
+                <h4 style="color: white; margin-bottom: 15px;">📚 Sources & References</h4>
+                <div style="font-size: 0.9em; line-height: 1.6;">
+                    <div><strong>[1]</strong> Trendyol Case Study - cilium.io/blog/2024/01/26/cilium-empowering-the-enterprise</div>
+                    <div><strong>[2]</strong> Bloomberg BQuant Enterprise - Data security & access control implementation</div>
+                    <div><strong>[3]</strong> Meltwater Migration - AWS VPC CNI to Cilium performance improvements</div>
+                    <div><strong>[4]</strong> Cloud Provider Adoption - AWS EKS Anywhere, Google GKE v2, Azure CNI</div>
+                    <div><strong>[5]</strong> CNCF Project Journey Report - cilium.io/adopters (14K+ stars, 1000+ orgs)</div>
+                    <div><strong>[6]</strong> Production Stability - User testimonials from cilium.io</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 11: Conclusion -->
+        <div class="slide">
+            <div class="logo">🚀 eBPF Power</div>
+            <div class="slide-counter">11/11</div>
+            <h1>The Verdict: Cilium is the FUTURE! 🚀🔥</h1>
+
+            <div class="highlight-box">
+                <h3>⚡ Cilium + eBPF + BBR = EKS Performance Unleashed! ⚡</h3>
+                <p>Stop accepting mediocre networking. Based on real Google B4 data: 2-25x better throughput is possible!</p>
+            </div>
+
+            <div class="performance-stats">
+                <div class="stat-card">
+                    <h4>🛡️</h4>
+                    <p>Advanced<br>Security</p>
+                </div>
+                <div class="stat-card">
+                    <h4>⚡</h4>
+                    <p>Lightning<br>Performance</p>
+                </div>
+                <div class="stat-card">
+                    <h4>👁️</h4>
+                    <p>Total<br>Visibility</p>
+                </div>
+                <div class="stat-card">
+                    <h4>💰</h4>
+                    <p>Massive<br>Savings</p>
+                </div>
+            </div>
+
+            <h2>🎯 Action Plan: Don't Wait, Migrate!</h2>
+            <ul>
+                <li><strong>📊 Benchmark your current EKS performance</strong>: Know your baseline</li>
+                <li><strong>🧪 Set up a Cilium test cluster</strong>: Prove the gains</li>
+                <li><strong>🚀 Plan your migration phases</strong>: Zero downtime is possible</li>
+                <li><strong>📈 Measure and celebrate wins</strong>: Show the business impact</li>
+                <li><strong>🔥 Enable BBR congestion control</strong>: Unlock maximum throughput</li>
+            </ul>
+
+            <div class="center-text" style="margin-top: 40px;">
+                <h2 style="background: linear-gradient(135deg, #ff6b35, #00d4ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                    The eBPF Revolution Starts NOW! 🔥🚀
+                </h2>
+                <p style="font-size: 1.3em; margin-top: 20px; color: #2d3436;">
+                    <strong>AWS VPC CNI served us well, but it's time to evolve.<br>
+                    Cilium eBPF delivers measurable improvements TODAY!</strong><br>
+                    <em>(1M requests/sec + 2-25x throughput gains = real impact! 🚀)</em>
+                </p>
+                <div style="margin-top: 30px;">
+                    <div class="eks-badge" style="font-size: 1.2em; padding: 15px 25px;">Ready to Transform Your EKS? 🚀</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="navigation">
+        <button class="nav-btn" id="prevBtn" onclick="changeSlide(-1)">← Previous</button>
+        <button class="nav-btn" id="nextBtn" onclick="changeSlide(1)">Next →</button>
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+
+        function showSlide(n) {
+            slides[currentSlide].classList.remove('active');
+            currentSlide = (n + totalSlides) % totalSlides;
+            slides[currentSlide].classList.add('active');
+            
+            // Update navigation buttons
+            document.getElementById('prevBtn').disabled = currentSlide === 0;
+            document.getElementById('nextBtn').disabled = currentSlide === totalSlides - 1;
+        }
+
+        function changeSlide(direction) {
+            if (direction === 1 && currentSlide < totalSlides - 1) {
+                showSlide(currentSlide + 1);
+            } else if (direction === -1 && currentSlide > 0) {
+                showSlide(currentSlide - 1);
+            }
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'ArrowRight' || event.key === ' ') {
+                changeSlide(1);
+            } else if (event.key === 'ArrowLeft') {
+                changeSlide(-1);
+            }
+        });
+
+        // Initialize
+        showSlide(0);
+    </script>
+</body>
+</html>
