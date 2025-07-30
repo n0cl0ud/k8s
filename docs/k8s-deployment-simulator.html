@@ -1775,6 +1775,7 @@ spec:
                 }
             }
             
+            // Toujours permettre le switch entre onglets
             // Remove active class from all headers and panels
             document.querySelectorAll('.tab-header').forEach(header => {
                 header.classList.remove('active');
@@ -1790,7 +1791,10 @@ spec:
             }
             
             // Add active class to corresponding panel
-            document.getElementById(tabName + '-panel').classList.add('active');
+            const targetPanel = document.getElementById(tabName + '-panel');
+            if (targetPanel) {
+                targetPanel.classList.add('active');
+            }
             
             // Focus on kubectl input when switching to kubectl tab
             if (tabName === 'kubectl') {
@@ -1802,6 +1806,8 @@ spec:
             
             // Hide notification badge for the active tab
             hideTabNotification(tabName);
+            
+            console.log(`Switched to tab: ${tabName}`);
         }
 
         // Terminal Functions
@@ -2708,9 +2714,10 @@ spec:
         function getClusterData() {
             const podsRunning = currentStep >= 8;
             const serviceActive = currentStep >= 9;
+            const podsCreated = currentStep >= 5; // Pods créés dès l'étape 5
             
             return {
-                pods: [
+                pods: podsCreated ? [
                     {
                         name: 'webapp-deployment-abc123-pod1',
                         ready: podsRunning ? '1/1' : '0/1',
@@ -2737,6 +2744,26 @@ spec:
                         age: podsRunning ? '2m' : '30s',
                         ip: podsRunning ? '10.244.1.12' : '<none>',
                         node: currentStep >= 6 ? 'node-1' : '<none>'
+                    }
+                ] : [
+                    // Pods par défaut même sans déploiement
+                    {
+                        name: 'coredns-558bd4d5db-abc12',
+                        ready: '1/1',
+                        status: 'Running',
+                        restarts: '0',
+                        age: '30d',
+                        ip: '10.244.0.2',
+                        node: 'control-plane'
+                    },
+                    {
+                        name: 'coredns-558bd4d5db-def34',
+                        ready: '1/1',
+                        status: 'Running',
+                        restarts: '0',
+                        age: '30d',
+                        ip: '10.244.0.3',
+                        node: 'control-plane'
                     }
                 ],
                 services: [
