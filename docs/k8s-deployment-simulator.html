@@ -23,6 +23,7 @@
             max-width: 1800px;
             margin: 0 auto;
             padding: 20px;
+            padding-right: calc(35vw + 40px); /* Espace pour les onglets */
         }
         
         h1 {
@@ -640,8 +641,9 @@
             position: fixed;
             top: 20px;
             right: 20px;
-            width: min(450px, 30vw);
-            height: 85vh;
+            width: min(450px, 35vw);
+            height: 75vh;
+            max-height: 600px;
             background: rgba(10, 10, 10, 0.95);
             border: 2px solid rgba(76, 175, 80, 0.3);
             border-radius: 15px;
@@ -650,6 +652,7 @@
             font-family: 'JetBrains Mono', 'Courier New', monospace;
             display: flex;
             flex-direction: column;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
         }
 
         .tab-headers {
@@ -918,7 +921,9 @@
         }
 
         .tab-panels {
-            height: 500px;
+            flex: 1;
+            height: auto;
+            max-height: calc(75vh - 80px);
             overflow: hidden;
         }
 
@@ -1475,7 +1480,7 @@ spec:
                                        class="terminal-input" 
                                        placeholder="Type kubectl commands... (try 'get pods' or 'help')"
                                        autocomplete="off"
-                                       onkeypress="handleTerminalInput(event)">
+                                       onkeydown="handleTerminalInput(event)">
                                 <div id="autocompleteSuggestions" class="autocomplete-suggestions" style="display: none;"></div>
                             </div>
                         </div>
