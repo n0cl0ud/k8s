@@ -678,6 +678,8 @@
             width: min(450px, 32vw);
             height: 70vh;
             max-height: 600px;
+            min-width: 300px;
+            min-height: 200px;
             background: rgba(10, 10, 10, 0.95);
             border: 2px solid rgba(76, 175, 80, 0.3);
             border-radius: 15px;
@@ -687,6 +689,109 @@
             display: flex;
             flex-direction: column;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            resize: both;
+            overflow: auto;
+        }
+        
+        /* Resize handles for manual resizing */
+        .resize-handle {
+            position: absolute;
+            background: rgba(76, 175, 80, 0.3);
+            transition: background 0.2s ease;
+        }
+        
+        .resize-handle:hover {
+            background: rgba(76, 175, 80, 0.6);
+        }
+        
+        .resize-handle-right {
+            top: 0;
+            right: -5px;
+            width: 10px;
+            height: 100%;
+            cursor: ew-resize;
+            border-radius: 0 15px 15px 0;
+        }
+        
+        .resize-handle-bottom {
+            bottom: -5px;
+            left: 0;
+            width: 100%;
+            height: 10px;
+            cursor: ns-resize;
+            border-radius: 0 0 15px 15px;
+        }
+        
+        .resize-handle-corner {
+            bottom: -5px;
+            right: -5px;
+            width: 20px;
+            height: 20px;
+            cursor: nw-resize;
+            border-radius: 0 0 15px 0;
+            background: rgba(76, 175, 80, 0.5);
+        }
+        
+        .resize-handle-corner:hover {
+            background: rgba(76, 175, 80, 0.8);
+        }
+        
+        /* Visual feedback during resize */
+        .terminal-tabs.resizing {
+            transition: none;
+            user-select: none;
+        }
+        
+        .terminal-tabs.resizing .resize-handle {
+            background: rgba(76, 175, 80, 0.8);
+        }
+        
+        /* Better resize indicators */
+        .resize-handle::after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .resize-handle-right::after {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 2px;
+            height: 20px;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(255, 255, 255, 0.3) 2px,
+                rgba(255, 255, 255, 0.3) 4px
+            );
+        }
+        
+        .resize-handle-bottom::after {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 2px;
+            background: repeating-linear-gradient(
+                90deg,
+                transparent,
+                transparent 2px,
+                rgba(255, 255, 255, 0.3) 2px,
+                rgba(255, 255, 255, 0.3) 4px
+            );
+        }
+        
+        .resize-handle-corner::after {
+            content: '⋱';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 12px;
+            line-height: 1;
         }
 
         .tab-headers {
@@ -1546,6 +1651,11 @@ spec:
                     </div>
                 </div>
             </div>
+            
+            <!-- Resize handles -->
+            <div class="resize-handle resize-handle-right"></div>
+            <div class="resize-handle resize-handle-bottom"></div>
+            <div class="resize-handle resize-handle-corner"></div>
         </div>
         
         <div class="cluster-view">
@@ -2609,6 +2719,82 @@ spec:
             });
         }
         
+        // Resizable functionality
+        function initializeResizableHandles() {
+            const terminalTabs = document.querySelector('.terminal-tabs');
+            const rightHandle = terminalTabs.querySelector('.resize-handle-right');
+            const bottomHandle = terminalTabs.querySelector('.resize-handle-bottom'); 
+            const cornerHandle = terminalTabs.querySelector('.resize-handle-corner');
+            
+            let isResizing = false;
+            let resizeType = '';
+            let startX, startY, startWidth, startHeight, startRight, startBottom;
+            
+            function startResize(e, type) {
+                isResizing = true;
+                resizeType = type;
+                
+                startX = e.clientX;
+                startY = e.clientY;
+                
+                const rect = terminalTabs.getBoundingClientRect();
+                startWidth = rect.width;
+                startHeight = rect.height;
+                startRight = window.innerWidth - rect.right;
+                startBottom = window.innerHeight - rect.bottom;
+                
+                // Add visual feedback
+                terminalTabs.classList.add('resizing');
+                
+                document.addEventListener('mousemove', handleResize);
+                document.addEventListener('mouseup', stopResize);
+                
+                // Prevent text selection while resizing
+                document.body.style.userSelect = 'none';
+                document.body.style.cursor = type === 'width' ? 'ew-resize' : 
+                                           type === 'height' ? 'ns-resize' : 'nw-resize';
+                
+                e.preventDefault();
+            }
+            
+            function handleResize(e) {
+                if (!isResizing) return;
+                
+                const deltaX = e.clientX - startX;
+                const deltaY = e.clientY - startY;
+                
+                if (resizeType === 'width' || resizeType === 'both') {
+                    const newWidth = Math.max(300, Math.min(window.innerWidth - 20, startWidth - deltaX));
+                    terminalTabs.style.width = newWidth + 'px';
+                }
+                
+                if (resizeType === 'height' || resizeType === 'both') {
+                    const newHeight = Math.max(200, Math.min(window.innerHeight - 120, startHeight + deltaY));
+                    terminalTabs.style.height = newHeight + 'px';
+                }
+            }
+            
+            function stopResize() {
+                isResizing = false;
+                resizeType = '';
+                
+                // Remove visual feedback
+                terminalTabs.classList.remove('resizing');
+                
+                document.removeEventListener('mousemove', handleResize);
+                document.removeEventListener('mouseup', stopResize);
+                
+                // Restore text selection and cursor
+                document.body.style.userSelect = '';
+                document.body.style.cursor = '';
+            }
+            
+            // Event listeners for resize handles
+            rightHandle.addEventListener('mousedown', (e) => startResize(e, 'width'));
+            bottomHandle.addEventListener('mousedown', (e) => startResize(e, 'height'));
+            cornerHandle.addEventListener('mousedown', (e) => startResize(e, 'both'));
+        }
+        
         // Configuration state
         let clusterConfig = {
             networkProxy: 'kube-proxy',
@@ -2841,6 +3027,7 @@ spec:
             initializeKubectlShell();
             initializeTabs();
             initializeTimelineClickHandlers();
+            initializeResizableHandles();
         });
 
         // Tab System Functions
@@ -4694,6 +4881,7 @@ status:
             console.log('Page loaded, initializing...');
             updateButtons();
             initializeTimelineClickHandlers();
+            initializeResizableHandles();
             console.log('Initialization complete');
         });
     </script>
