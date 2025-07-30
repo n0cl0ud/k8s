@@ -1188,8 +1188,31 @@
         }
 
         .terminal-tabs.minimized .tab-headers {
-            padding: 8px;
+            padding: 5px;
             border-radius: 15px;
+            background: rgba(76, 175, 80, 0.3);
+        }
+
+        .terminal-tabs.minimized .tab-header {
+            padding: 8px 12px;
+            font-size: 0.9em;
+            min-height: 35px;
+            border-radius: 10px;
+            margin: 2px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(76, 175, 80, 0.4);
+        }
+
+        .terminal-tabs.minimized .tab-header.active {
+            background: rgba(76, 175, 80, 0.4);
+            color: #fff;
+            border-color: #4CAF50;
+        }
+
+        .terminal-tabs.minimized .tab-header:hover {
+            background: rgba(76, 175, 80, 0.3);
+            color: #fff;
+            transform: scale(1.05);
         }
 
         /* Responsive design */
@@ -1740,6 +1763,18 @@ spec:
 
         // Tab Management Functions
         function switchTab(event, tabName) {
+            // Si le conteneur est minimisé, d'abord le restaurer
+            const terminalTabs = document.querySelector('.terminal-tabs');
+            if (terminalTabs && terminalTabs.classList.contains('minimized')) {
+                terminalTabs.classList.remove('minimized');
+                const timeline = document.getElementById('timeline');
+                const toggleButton = document.querySelector('.timeline-toggle');
+                if (timeline && toggleButton) {
+                    timeline.classList.remove('collapsed');
+                    toggleButton.textContent = '▼';
+                }
+            }
+            
             // Remove active class from all headers and panels
             document.querySelectorAll('.tab-header').forEach(header => {
                 header.classList.remove('active');
