@@ -730,13 +730,13 @@
                 </div>
             </div>
 
-            <h2>🔥 eBPF Performance Optimizations (Verified)</h2>
+            <h2>🔥 eBPF Performance Optimizations</h2>
             <ul>
-                <li><strong>⚡ XDP (eXpress Data Path)</strong>: Process packets before kernel stack</li>
-                <li><strong>🚀 TC (Traffic Control)</strong>: Skip netfilter completely</li>
-                <li><strong>💨 Zero-copy networking</strong>: Data never leaves kernel</li>
+                <li><strong>⚡ XDP (eXpress Data Path)</strong>: Early packet processing before network stack</li>
+                <li><strong>🚀 TC (Traffic Control)</strong>: eBPF hooks bypass netfilter/iptables rules</li>
+                <li><strong>💨 Kernel-space processing</strong>: Fewer userspace/kernel transitions</li>
                 <li><strong>🧠 JIT compilation</strong>: eBPF compiled to native CPU instructions</li>
-                <li><strong>🗑️ Bypass iptables</strong>: No more rule chain traversal</li>
+                <li><strong>🎯 Direct forwarding</strong>: Optimized routing via eBPF maps</li>
             </ul>
             <p style="font-size: 0.9em; color: #636e72; margin-top: 20px;">
                 <em>Performance data from Cilium community benchmarks and production case studies</em>
