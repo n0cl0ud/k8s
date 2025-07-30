@@ -253,6 +253,23 @@
             max-height: 0;
             opacity: 0;
         }
+
+        .timeline.collapsed {
+            transform: scale(0.8);
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        .timeline.collapsed .timeline-header {
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 25px;
+            padding: 8px 12px;
+            margin: 0;
+        }
+
+        .timeline.collapsed .timeline-content {
+            display: none;
+        }
         
         .timeline-step {
             background: rgba(255, 255, 255, 0.05);
@@ -1683,9 +1700,22 @@ spec:
                 panel.classList.remove('active');
             });
             
-            // Add active class to clicked header and corresponding panel  
-            event.target.classList.add('active');
+            // Find the actual tab header (in case event.target is a child element)
+            const tabHeader = event.target.closest('.tab-header');
+            if (tabHeader) {
+                tabHeader.classList.add('active');
+            }
+            
+            // Add active class to corresponding panel
             document.getElementById(tabName + '-panel').classList.add('active');
+            
+            // Focus on kubectl input when switching to kubectl tab
+            if (tabName === 'kubectl') {
+                setTimeout(() => {
+                    const terminalInput = document.getElementById('terminalInput');
+                    if (terminalInput) terminalInput.focus();
+                }, 100);
+            }
             
             // Hide notification badge for the active tab
             hideTabNotification(tabName);
@@ -1812,19 +1842,19 @@ spec:
 
         function toggleTimeline() {
             console.log('toggleTimeline called');
-            const timelineContent = document.getElementById('timeline-content');
+            const timeline = document.getElementById('timeline');
             const toggleButton = document.querySelector('.timeline-toggle');
             
-            console.log('timelineContent:', timelineContent);
+            console.log('timeline:', timeline);
             console.log('toggleButton:', toggleButton);
             
-            if (timelineContent && toggleButton) {
-                if (timelineContent.classList.contains('collapsed')) {
-                    timelineContent.classList.remove('collapsed');
+            if (timeline && toggleButton) {
+                if (timeline.classList.contains('collapsed')) {
+                    timeline.classList.remove('collapsed');
                     toggleButton.textContent = '▼';
                     console.log('Timeline expanded');
                 } else {
-                    timelineContent.classList.add('collapsed');
+                    timeline.classList.add('collapsed');
                     toggleButton.textContent = '▶';
                     console.log('Timeline collapsed');
                 }
