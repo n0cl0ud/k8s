@@ -608,12 +608,12 @@
             bottom: 0;
             left: 0;
             right: 0;
-            height: 350px;
+            height: 45vh;
             background: rgba(10, 10, 10, 0.98);
             border-top: 3px solid #4CAF50;
             z-index: 1000;
             transition: transform 0.3s ease;
-            transform: translateY(320px);
+            transform: translateY(calc(45vh - 40px));
             backdrop-filter: blur(10px);
             font-family: 'JetBrains Mono', 'Courier New', monospace;
         }
@@ -659,6 +659,7 @@
             overflow-y: auto;
             padding: 15px;
             background: #0a0a0a;
+            max-height: calc(45vh - 40px);
         }
 
         .shell-output {
@@ -1109,8 +1110,9 @@ spec:
         <div class="shell-content" id="shellContent">
             <div class="shell-output">
                 <div style="color: #4CAF50;">Welcome to kubectl interactive terminal!</div>
-                <div style="color: #888; font-size: 0.8em;">Try: get pods, get services, describe pod webapp-deployment-xxx, logs webapp-deployment-xxx</div>
-                <div style="color: #888; font-size: 0.8em;">Advanced: get configmaps, get secrets, get crd, get events, api-resources</div>
+                <div style="color: #888; font-size: 0.8em;">Try: get pods (or get po), get services (or get svc), get configmaps (or get cm)</div>
+                <div style="color: #888; font-size: 0.8em;">Advanced: get secrets, get crd, get events, get ns, api-resources</div>
+                <div style="color: #666; font-size: 0.75em;">Shortcuts: po=pods, svc=services, deploy=deployments, rs=replicasets, cm=configmaps, no=nodes, ev=events, ns=namespaces</div>
             </div>
             <div class="shell-prompt">
                 <span class="prompt-symbol">$ kubectl</span>
@@ -2140,7 +2142,12 @@ spec:
             
             // Commands and resources for autocomplete
             const commands = ['get', 'describe', 'logs', 'api-resources'];
-            const resources = ['pods', 'services', 'deployments', 'replicasets', 'configmaps', 'secrets', 'nodes', 'events', 'crd', 'all'];
+            const resources = [
+                'pods', 'po', 'services', 'svc', 'deployments', 'deploy', 'replicasets', 'rs',
+                'configmaps', 'cm', 'secrets', 'nodes', 'no', 'events', 'ev', 'crd', 'all',
+                'namespaces', 'ns', 'persistentvolumes', 'pv', 'persistentvolumeclaims', 'pvc',
+                'endpoints', 'ep'
+            ];
             const flags = ['-o yaml', '-o json', '--watch', '-w', '--no-headers'];
             
             let selectedSuggestion = -1;
@@ -2323,10 +2330,27 @@ spec:
             const outputYaml = flags.includes('-o') && (flags.includes('yaml') || flags.includes('json'));
             const outputJson = flags.includes('-o') && flags.includes('json');
             
-            switch (resource) {
+            // Normalize resource shortcuts
+            const resourceMap = {
+                'po': 'pods', 'pod': 'pods',
+                'svc': 'services', 'service': 'services',
+                'deploy': 'deployments', 'deployment': 'deployments',
+                'rs': 'replicasets', 'replicaset': 'replicasets',
+                'cm': 'configmaps', 'configmap': 'configmaps',
+                'secret': 'secrets',
+                'ev': 'events', 'event': 'events',
+                'no': 'nodes', 'node': 'nodes',
+                'ns': 'namespaces', 'namespace': 'namespaces',
+                'pv': 'persistentvolumes', 'persistentvolume': 'persistentvolumes',
+                'pvc': 'persistentvolumeclaims', 'persistentvolumeclaim': 'persistentvolumeclaims',
+                'ep': 'endpoints', 'endpoint': 'endpoints',
+                'customresourcedefinitions': 'crd', 'customresourcedefinition': 'crd'
+            };
+            
+            const normalizedResource = resourceMap[resource] || resource;
+            
+            switch (normalizedResource) {
                 case 'pods':
-                case 'pod':
-                case 'po':
                     if (resourceName && resourceName !== '-o') {
                         const pod = clusterData.pods.find(p => p.name.includes(resourceName) || p.name === resourceName);
                         if (!pod) {
@@ -2340,42 +2364,39 @@ spec:
                     return outputYaml ? (outputJson ? getPodsJson(clusterData.pods) : getPodsYaml(clusterData.pods)) : getPodsTable(clusterData.pods);
                     
                 case 'services':
-                case 'service':
-                case 'svc':
                     return outputYaml ? (outputJson ? getServicesJson(clusterData.services) : getServicesYaml(clusterData.services)) : getServicesTable(clusterData.services);
                     
                 case 'deployments':
-                case 'deployment':
-                case 'deploy':
                     return outputYaml ? (outputJson ? getDeploymentsJson(clusterData.deployments) : getDeploymentsYaml(clusterData.deployments)) : getDeploymentsTable(clusterData.deployments);
                     
                 case 'replicasets':
-                case 'replicaset':
-                case 'rs':
                     return outputYaml ? (outputJson ? getReplicaSetsJson(clusterData.replicasets) : getReplicaSetsYaml(clusterData.replicasets)) : getReplicaSetsTable(clusterData.replicasets);
                     
                 case 'configmaps':
-                case 'configmap':
-                case 'cm':
                     return outputYaml ? (outputJson ? getConfigMapsJson(clusterData.configmaps) : getConfigMapsYaml(clusterData.configmaps)) : getConfigMapsTable(clusterData.configmaps);
                     
                 case 'secrets':
-                case 'secret':
                     return outputYaml ? (outputJson ? getSecretsJson(clusterData.secrets) : getSecretsYaml(clusterData.secrets)) : getSecretsTable(clusterData.secrets);
                     
                 case 'events':
-                case 'event':
-                case 'ev':
                     return getEventsTable(clusterData.events);
                     
                 case 'nodes':
-                case 'node':
-                case 'no':
                     return outputYaml ? (outputJson ? getNodesJson(clusterData.nodes) : getNodesYaml(clusterData.nodes)) : getNodesTable(clusterData.nodes);
                     
+                case 'namespaces':
+                    return getNamespacesTable();
+                    
+                case 'persistentvolumes':
+                    return getPersistentVolumesTable();
+                    
+                case 'persistentvolumeclaims':
+                    return getPersistentVolumeClaimsTable();
+                    
+                case 'endpoints':
+                    return getEndpointsTable(clusterData);
+                    
                 case 'crd':
-                case 'customresourcedefinitions':
-                case 'customresourcedefinition':
                     return getCRDsTable(clusterData.crds);
                     
                 case 'all':
@@ -2595,8 +2616,17 @@ spec:
                 return `<div class="error-output">Error: You must specify the type of resource to describe.</div>`;
             }
             
-            switch (resource) {
-                case 'pod':
+            // Normalize resource shortcuts for describe
+            const resourceMap = {
+                'po': 'pods', 'pod': 'pods',
+                'svc': 'services', 'service': 'services',
+                'deploy': 'deployments', 'deployment': 'deployments',
+                'no': 'nodes', 'node': 'nodes'
+            };
+            
+            const normalizedResource = resourceMap[resource] || resource;
+            
+            switch (normalizedResource) {
                 case 'pods':
                     const pod = clusterData.pods.find(p => p.name.includes(resourceName) || p.name === resourceName);
                     if (!pod) {
@@ -2604,18 +2634,92 @@ spec:
                     }
                     return describePod(pod);
                     
-                case 'service':
                 case 'services':
-                case 'svc':
                     const service = clusterData.services.find(s => s.name === resourceName);
                     if (!service) {
                         return `<div class="error-output">Error from server (NotFound): services "${resourceName}" not found</div>`;
                     }
                     return describeService(service);
                     
+                case 'nodes':
+                    const node = clusterData.nodes.find(n => n.name === resourceName);
+                    if (!node) {
+                        return `<div class="error-output">Error from server (NotFound): nodes "${resourceName}" not found</div>`;
+                    }
+                    return describeNode(node);
+                    
                 default:
                     return `<div class="error-output">Error: the server doesn't have a resource type "${resource}"</div>`;
             }
+        }
+
+        function describeNode(node) {
+            return `<div class="kubectl-output" style="color: #e0e0e0;">
+Name:               ${node.name}
+Roles:              ${node.roles}
+Labels:             beta.kubernetes.io/arch=amd64
+                    beta.kubernetes.io/os=linux
+                    kubernetes.io/arch=amd64
+                    kubernetes.io/hostname=${node.name}
+                    kubernetes.io/os=linux
+Annotations:        node.alpha.kubernetes.io/ttl: 0
+CreationTimestamp:  ${new Date(Date.now() - 30*24*60*60*1000).toISOString()}
+Taints:             <none>
+Unschedulable:      false
+Lease:
+  HolderIdentity:  ${node.name}
+  AcquireTime:     ${new Date(Date.now() - 60000).toISOString()}
+  RenewTime:       ${new Date().toISOString()}
+Conditions:
+  Type             Status  LastHeartbeatTime                 LastTransitionTime                Reason                       Message
+  ----             ------  -----------------                 ------------------                ------                       -------
+  MemoryPressure   False   ${new Date().toISOString()}  ${new Date(Date.now() - 30*24*60*60*1000).toISOString()}  KubeletHasSufficientMemory   kubelet has sufficient memory available
+  DiskPressure     False   ${new Date().toISOString()}  ${new Date(Date.now() - 30*24*60*60*1000).toISOString()}  KubeletHasNoDiskPressure     kubelet has no disk pressure
+  PIDPressure      False   ${new Date().toISOString()}  ${new Date(Date.now() - 30*24*60*60*1000).toISOString()}  KubeletHasSufficientPID      kubelet has sufficient PID available
+  Ready            True    ${new Date().toISOString()}  ${new Date(Date.now() - 30*24*60*60*1000).toISOString()}  KubeletReady                 kubelet is posting ready status
+Addresses:
+  InternalIP:  192.168.1.10${node.name === 'node-1' ? '1' : node.name === 'node-2' ? '2' : '0'}
+  Hostname:    ${node.name}
+Capacity:
+  cpu:                2
+  ephemeral-storage:  20Gi
+  hugepages-1Gi:      0
+  hugepages-2Mi:      0
+  memory:             4Gi
+  pods:               110
+Allocatable:
+  cpu:                2
+  ephemeral-storage:  18Gi
+  hugepages-1Gi:      0
+  hugepages-2Mi:      0
+  memory:             3.5Gi
+  pods:               110
+System Info:
+  Machine ID:                 abc123def456
+  System UUID:                xyz789abc123
+  Boot ID:                    boot123
+  Kernel Version:             5.4.0-74-generic
+  OS Image:                   Ubuntu 20.04.2 LTS
+  Operating System:           linux
+  Architecture:               amd64
+  Container Runtime Version:  containerd://1.6.6
+  Kubelet Version:            ${node.version}
+  Kube-Proxy Version:         ${node.version}
+Non-terminated Pods:          (${node.name.includes('control') ? '10' : node.name === 'node-1' ? '2' : '1'} in total)
+  Namespace                   Name                         CPU Requests  CPU Limits  Memory Requests  Memory Limits  AGE
+  ---------                   ----                         ------------  ----------  ---------------  -------------  ---
+  ${node.name === 'node-1' ? 'default                     webapp-deployment-abc123-pod1   50m (2%)      100m (5%)   64Mi (1%)        128Mi (3%)     2m' : ''}
+  ${node.name === 'node-1' ? 'default                     webapp-deployment-abc123-pod3   50m (2%)      100m (5%)   64Mi (1%)        128Mi (3%)     2m' : ''}
+  ${node.name === 'node-2' ? 'default                     webapp-deployment-abc123-pod2   50m (2%)      100m (5%)   64Mi (1%)        128Mi (3%)     2m' : ''}
+Allocated resources:
+  (Total limits may be over 100 percent, i.e., overcommitted.)
+  Resource           Requests    Limits
+  --------           --------    ------
+  cpu                ${node.name === 'node-1' ? '100m (5%)' : node.name === 'node-2' ? '50m (2%)' : '500m (25%)'}   ${node.name === 'node-1' ? '200m (10%)' : node.name === 'node-2' ? '100m (5%)' : '1000m (50%)'}
+  memory             ${node.name === 'node-1' ? '128Mi (3%)' : node.name === 'node-2' ? '64Mi (1%)' : '2Gi (57%)'}  ${node.name === 'node-1' ? '256Mi (7%)' : node.name === 'node-2' ? '128Mi (3%)' : '4Gi (114%)'}
+  ephemeral-storage  0 (0%)      0 (0%)
+Events:              <none>
+</div>`;
         }
 
         function describePod(pod) {
@@ -2845,6 +2949,72 @@ Events:            <none>
     <span>CiliumNetworkPolicy</span>
 </div>
 </div>`;
+        }
+
+        function getSinglePodTable(pod) {
+            const statusClass = pod.status.toLowerCase() === 'running' ? 'status-running' : 
+                               pod.status.toLowerCase() === 'pending' ? 'status-pending' : 'status-error';
+            return `<div class="kubectl-output">
+                <div class="kubectl-header">NAME                           READY   STATUS    RESTARTS   AGE</div>
+                <div class="kubectl-row">
+                    <span class="resource-name">${pod.name}</span>
+                    <span>${pod.ready}</span>
+                    <span class="${statusClass}">${pod.status}</span>
+                    <span>${pod.restarts}</span>
+                    <span>${pod.age}</span>
+                </div>
+            </div>`;
+        }
+
+        function getNamespacesTable() {
+            return `<div class="kubectl-output">
+                <div class="kubectl-header">NAME              STATUS   AGE</div>
+                <div class="kubectl-row">
+                    <span class="resource-name">default</span>
+                    <span class="status-running">Active</span>
+                    <span>30d</span>
+                </div>
+                <div class="kubectl-row">
+                    <span class="resource-name">kube-system</span>
+                    <span class="status-running">Active</span>
+                    <span>30d</span>
+                </div>
+                <div class="kubectl-row">
+                    <span class="resource-name">kube-public</span>
+                    <span class="status-running">Active</span>
+                    <span>30d</span>
+                </div>
+            </div>`;
+        }
+
+        function getPersistentVolumesTable() {
+            return `<div class="kubectl-output">
+                <div class="kubectl-header">NAME   CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM   STORAGECLASS   REASON   AGE</div>
+                <div style="color: #888; padding: 10px;">No resources found</div>
+            </div>`;
+        }
+
+        function getPersistentVolumeClaimsTable() {
+            return `<div class="kubectl-output">
+                <div class="kubectl-header">NAME   STATUS   VOLUME   CAPACITY   ACCESS MODES   STORAGECLASS   AGE</div>
+                <div style="color: #888; padding: 10px;">No resources found in default namespace.</div>
+            </div>`;
+        }
+
+        function getEndpointsTable(clusterData) {
+            return `<div class="kubectl-output">
+                <div class="kubectl-header">NAME             ENDPOINTS                                      AGE</div>
+                <div class="kubectl-row">
+                    <span class="resource-name">kubernetes</span>
+                    <span>192.168.1.100:6443</span>
+                    <span>30d</span>
+                </div>
+                <div class="kubectl-row">
+                    <span class="resource-name">webapp-service</span>
+                    <span>${currentStep >= 9 ? '10.244.1.10:80,10.244.1.12:80,10.244.2.11:80' : '<none>'}</span>
+                    <span>${currentStep >= 9 ? '2m' : '30s'}</span>
+                </div>
+            </div>`;
         }
 
         function getPodYaml(pod) {
