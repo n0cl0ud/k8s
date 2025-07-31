@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kubernetes Manifest Visualizer</title>
+    <title>Kubernetes & Terraform Visualizer</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@cdktf/hcl2json@0.19.0/lib/index.js"></script>
     <style>
         * {
             margin: 0;
@@ -190,6 +191,84 @@
         .resource-node.daemonset {
             border-color: #FFC107;
             box-shadow: 0 0 20px rgba(255, 193, 7, 0.3);
+        }
+        
+        /* Terraform/Cloud resource styles */
+        .resource-node.aws_instance,
+        .resource-node.aws_eks_cluster,
+        .resource-node.aws_rds_instance {
+            border-color: #FF9900;
+            box-shadow: 0 0 20px rgba(255, 153, 0, 0.3);
+            background: linear-gradient(135deg, rgba(255, 153, 0, 0.1), rgba(255, 153, 0, 0.05));
+        }
+        
+        .resource-node.google_compute_instance,
+        .resource-node.google_container_cluster,
+        .resource-node.google_sql_database_instance {
+            border-color: #4285F4;
+            box-shadow: 0 0 20px rgba(66, 133, 244, 0.3);
+            background: linear-gradient(135deg, rgba(66, 133, 244, 0.1), rgba(66, 133, 244, 0.05));
+        }
+        
+        .resource-node.azurerm_virtual_machine,
+        .resource-node.azurerm_kubernetes_cluster,
+        .resource-node.azurerm_sql_server {
+            border-color: #0078D4;
+            box-shadow: 0 0 20px rgba(0, 120, 212, 0.3);
+            background: linear-gradient(135deg, rgba(0, 120, 212, 0.1), rgba(0, 120, 212, 0.05));
+        }
+        
+        .resource-node.terraform {
+            border-color: #623CE4;
+            box-shadow: 0 0 20px rgba(98, 60, 228, 0.3);
+            background: linear-gradient(135deg, rgba(98, 60, 228, 0.1), rgba(98, 60, 228, 0.05));
+        }
+        
+        .cloud-provider-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.7em;
+            font-weight: bold;
+        }
+        
+        .resource-details-extended {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-size: 0.8em;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            padding: 2px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .detail-row:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        
+        .detail-label {
+            opacity: 0.7;
+            font-weight: bold;
+        }
+        
+        .detail-value {
+            opacity: 0.9;
+            text-align: right;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         
         .resource-icon {
@@ -456,16 +535,16 @@
 </head>
 <body>
     <div class="container">
-        <h1>📊 Kubernetes Manifest Visualizer</h1>
-        <p class="subtitle">Drag & drop your YAML manifests to visualize the architecture</p>
+        <h1>📊 Kubernetes & Terraform Visualizer</h1>
+        <p class="subtitle">Drag & drop your YAML manifests and Terraform files to visualize the complete infrastructure</p>
         
         <div class="main-layout">
             <div class="left-panel">
                 <div class="drop-zone" id="dropZone">
                     <div class="drop-icon">📁</div>
-                    <div class="drop-text">Drop your YAML files here</div>
-                    <div class="drop-subtext">or click to browse (multiple files supported)</div>
-                    <input type="file" id="fileInput" class="file-input" accept=".yaml,.yml" multiple>
+                    <div class="drop-text">Drop your files here</div>
+                    <div class="drop-subtext">YAML (.yaml, .yml) and Terraform (.tf) files supported</div>
+                    <input type="file" id="fileInput" class="file-input" accept=".yaml,.yml,.tf" multiple>
                 </div>
                 
                 <div id="filesListContainer" class="files-list" style="display: none;">
@@ -537,6 +616,7 @@
 
         // Resource icons mapping
         const resourceIcons = {
+            // Kubernetes resources
             'Deployment': '🚀',
             'Service': '🌐',
             'ConfigMap': '⚙️',
@@ -556,7 +636,69 @@
             'ClusterRole': '👑',
             'ClusterRoleBinding': '🔗',
             'HorizontalPodAutoscaler': '📈',
-            'PodDisruptionBudget': '🛡️'
+            'PodDisruptionBudget': '🛡️',
+            
+            // AWS resources
+            'aws_instance': '🖥️',
+            'aws_eks_cluster': '☸️',
+            'aws_rds_instance': '🗄️',
+            'aws_s3_bucket': '🪣',
+            'aws_vpc': '🌐',
+            'aws_subnet': '🔗',
+            'aws_security_group': '🛡️',
+            'aws_load_balancer': '⚖️',
+            'aws_autoscaling_group': '📈',
+            'aws_iam_role': '👤',
+            'aws_lambda_function': '⚡',
+            'aws_cloudwatch_log_group': '📊',
+            'aws_route53_zone': '🌍',
+            'aws_elasticache_cluster': '⚡',
+            'aws_ecs_cluster': '📦',
+            'aws_ecr_repository': '📚',
+            
+            // GCP resources
+            'google_compute_instance': '🖥️',
+            'google_container_cluster': '☸️',
+            'google_sql_database_instance': '🗄️',
+            'google_storage_bucket': '🪣',
+            'google_compute_network': '🌐',
+            'google_compute_subnetwork': '🔗',
+            'google_compute_firewall': '🛡️',
+            'google_compute_target_pool': '⚖️',
+            'google_compute_instance_group': '📈',
+            'google_service_account': '👤',
+            'google_cloudfunctions_function': '⚡',
+            'google_logging_project_sink': '📊',
+            'google_dns_managed_zone': '🌍',
+            'google_redis_instance': '⚡',
+            'google_cloud_run_service': '🏃',
+            'google_artifact_registry_repository': '📚',
+            
+            // Azure resources
+            'azurerm_virtual_machine': '🖥️',
+            'azurerm_kubernetes_cluster': '☸️',
+            'azurerm_sql_server': '🗄️',
+            'azurerm_storage_account': '🪣',
+            'azurerm_virtual_network': '🌐',
+            'azurerm_subnet': '🔗',
+            'azurerm_network_security_group': '🛡️',
+            'azurerm_lb': '⚖️',
+            'azurerm_virtual_machine_scale_set': '📈',
+            'azurerm_role_assignment': '👤',
+            'azurerm_function_app': '⚡',
+            'azurerm_log_analytics_workspace': '📊',
+            'azurerm_dns_zone': '🌍',
+            'azurerm_redis_cache': '⚡',
+            'azurerm_container_group': '📦',
+            'azurerm_container_registry': '📚',
+            
+            // Generic Terraform
+            'resource': '🔧',
+            'data': '📋',
+            'variable': '🔤',
+            'output': '📤',
+            'module': '📦',
+            'locals': '🏠'
         };
 
         // Setup drag and drop
@@ -593,19 +735,25 @@
 
         // Handle multiple files processing
         function handleFiles(files) {
-            const yamlFiles = files.filter(file => file.name.match(/\.(yaml|yml)$/i));
+            const supportedFiles = files.filter(file => 
+                file.name.match(/\.(yaml|yml|tf)$/i)
+            );
             
-            if (yamlFiles.length === 0) {
-                showError('Please select YAML files');
+            if (supportedFiles.length === 0) {
+                showError('Please select YAML (.yaml, .yml) or Terraform (.tf) files');
                 return;
             }
 
-            yamlFiles.forEach(file => {
+            supportedFiles.forEach(file => {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     try {
                         const content = e.target.result;
-                        parseAndAddFile(file.name, content);
+                        if (file.name.match(/\.tf$/i)) {
+                            parseAndAddTerraformFile(file.name, content);
+                        } else {
+                            parseAndAddFile(file.name, content);
+                        }
                     } catch (error) {
                         showError(`Error reading ${file.name}: ${error.message}`);
                     }
@@ -614,7 +762,7 @@
             });
         }
 
-        // Parse and add file to the project
+        // Parse and add YAML file to the project
         function parseAndAddFile(fileName, content) {
             try {
                 const fileResources = [];
@@ -626,6 +774,7 @@
                     if (doc && doc.kind) {
                         const resource = extractResourceInfo(doc);
                         resource.fileName = fileName;
+                        resource.fileType = 'yaml';
                         fileResources.push(resource);
                     }
                 });
@@ -634,7 +783,8 @@
                     // Store file data
                     loadedFiles.set(fileName, {
                         content: content,
-                        resources: fileResources
+                        resources: fileResources,
+                        type: 'yaml'
                     });
                     
                     // Update UI
@@ -645,6 +795,189 @@
             } catch (error) {
                 showError(`Error parsing ${fileName}: ${error.message}`);
             }
+        }
+
+        // Parse and add Terraform file to the project
+        function parseAndAddTerraformFile(fileName, content) {
+            try {
+                const fileResources = [];
+                
+                // Simple HCL parser for Terraform
+                const terraformResources = parseTerraformContent(content);
+                
+                terraformResources.forEach(resource => {
+                    const resourceInfo = extractTerraformResourceInfo(resource);
+                    resourceInfo.fileName = fileName;
+                    resourceInfo.fileType = 'terraform';
+                    fileResources.push(resourceInfo);
+                });
+
+                if (fileResources.length > 0) {
+                    // Store file data
+                    loadedFiles.set(fileName, {
+                        content: content,
+                        resources: fileResources,
+                        type: 'terraform'
+                    });
+                    
+                    // Update UI
+                    updateFilesList();
+                    updateProjectVisualization();
+                }
+                
+            } catch (error) {
+                showError(`Error parsing Terraform file ${fileName}: ${error.message}`);
+            }
+        }
+
+        // Simple Terraform HCL parser
+        function parseTerraformContent(content) {
+            const resources = [];
+            
+            // Match resource blocks: resource "type" "name" { ... }
+            const resourceRegex = /resource\s+"([^"]+)"\s+"([^"]+)"\s*{([^{}]*(?:{[^{}]*}[^{}]*)*)}/g;
+            let match;
+            
+            while ((match = resourceRegex.exec(content)) !== null) {
+                const [, type, name, body] = match;
+                resources.push({
+                    type: 'resource',
+                    resourceType: type,
+                    name: name,
+                    body: body.trim(),
+                    fullMatch: match[0]
+                });
+            }
+            
+            // Match data blocks: data "type" "name" { ... }
+            const dataRegex = /data\s+"([^"]+)"\s+"([^"]+)"\s*{([^{}]*(?:{[^{}]*}[^{}]*)*)}/g;
+            while ((match = dataRegex.exec(content)) !== null) {
+                const [, type, name, body] = match;
+                resources.push({
+                    type: 'data',
+                    resourceType: type,
+                    name: name,
+                    body: body.trim(),
+                    fullMatch: match[0]
+                });
+            }
+            
+            // Match variables: variable "name" { ... }
+            const variableRegex = /variable\s+"([^"]+)"\s*{([^{}]*(?:{[^{}]*}[^{}]*)*)}/g;
+            while ((match = variableRegex.exec(content)) !== null) {
+                const [, name, body] = match;
+                resources.push({
+                    type: 'variable',
+                    name: name,
+                    body: body.trim(),
+                    fullMatch: match[0]
+                });
+            }
+            
+            // Match outputs: output "name" { ... }
+            const outputRegex = /output\s+"([^"]+)"\s*{([^{}]*(?:{[^{}]*}[^{}]*)*)}/g;
+            while ((match = outputRegex.exec(content)) !== null) {
+                const [, name, body] = match;
+                resources.push({
+                    type: 'output',
+                    name: name,
+                    body: body.trim(),
+                    fullMatch: match[0]
+                });
+            }
+            
+            return resources;
+        }
+
+        // Extract Terraform resource information
+        function extractTerraformResourceInfo(resource) {
+            const info = {
+                kind: resource.resourceType || resource.type,
+                name: resource.name,
+                namespace: 'terraform',
+                labels: {},
+                annotations: {},
+                id: `${resource.resourceType || resource.type}-${resource.name}`,
+                terraformType: resource.type,
+                provider: getProviderFromResourceType(resource.resourceType || resource.type)
+            };
+
+            // Parse the body for common attributes
+            const attributes = parseHCLAttributes(resource.body);
+            
+            // Extract common information based on resource type
+            switch (resource.resourceType) {
+                case 'aws_instance':
+                    info.instanceType = attributes.instance_type || 'unknown';
+                    info.ami = attributes.ami || 'unknown';
+                    info.availabilityZone = attributes.availability_zone || 'unknown';
+                    break;
+                case 'aws_eks_cluster':
+                    info.version = attributes.version || 'unknown';
+                    info.roleArn = attributes.role_arn || 'unknown';
+                    break;
+                case 'aws_rds_instance':
+                    info.engine = attributes.engine || 'unknown';
+                    info.engineVersion = attributes.engine_version || 'unknown';
+                    info.instanceClass = attributes.instance_class || 'unknown';
+                    break;
+                case 'google_compute_instance':
+                    info.machineType = attributes.machine_type || 'unknown';
+                    info.zone = attributes.zone || 'unknown';
+                    break;
+                case 'google_container_cluster':
+                    info.location = attributes.location || 'unknown';
+                    info.nodeVersion = attributes.node_version || 'unknown';
+                    break;
+                case 'azurerm_virtual_machine':
+                    info.vmSize = attributes.vm_size || 'unknown';
+                    info.location = attributes.location || 'unknown';
+                    break;
+                case 'azurerm_kubernetes_cluster':
+                    info.location = attributes.location || 'unknown';
+                    info.kubernetesVersion = attributes.kubernetes_version || 'unknown';
+                    break;
+            }
+
+            // Add common attributes
+            info.tags = attributes.tags || {};
+            info.count = attributes.count || 1;
+            
+            return info;
+        }
+
+        // Get cloud provider from resource type
+        function getProviderFromResourceType(resourceType) {
+            if (resourceType.startsWith('aws_')) return 'AWS';
+            if (resourceType.startsWith('google_')) return 'GCP';
+            if (resourceType.startsWith('azurerm_')) return 'Azure';
+            return 'Terraform';
+        }
+
+        // Simple HCL attribute parser
+        function parseHCLAttributes(body) {
+            const attributes = {};
+            
+            // Match simple key = value pairs
+            const simpleAttrRegex = /(\w+)\s*=\s*"([^"]*)"/g;
+            let match;
+            while ((match = simpleAttrRegex.exec(body)) !== null) {
+                attributes[match[1]] = match[2];
+            }
+            
+            // Match numeric values
+            const numericAttrRegex = /(\w+)\s*=\s*(\d+(?:\.\d+)?)/g;
+            while ((match = numericAttrRegex.exec(body)) !== null) {
+                attributes[match[1]] = parseFloat(match[2]);
+            }
+            
+            // Match boolean values
+            const boolAttrRegex = /(\w+)\s*=\s*(true|false)/g;
+            while ((match = boolAttrRegex.exec(body)) !== null) {
+                attributes[match[1]] = match[2] === 'true';
+            }
+            
+            return attributes;
         }
 
         // Update files list UI
@@ -1173,6 +1506,14 @@
             node.appendChild(name);
             node.appendChild(details);
             
+            // Add cloud provider badge for Terraform resources
+            if (resource.fileType === 'terraform' && resource.provider && resource.provider !== 'Terraform') {
+                const badge = document.createElement('div');
+                badge.className = 'cloud-provider-badge';
+                badge.textContent = resource.provider;
+                node.appendChild(badge);
+            }
+            
             // Make node draggable
             node.addEventListener('mousedown', startDrag);
             
@@ -1181,41 +1522,221 @@
 
         // Get resource details HTML
         function getResourceDetails(resource) {
-            let details = [];
+            if (resource.fileType === 'terraform') {
+                return getTerraformResourceDetails(resource);
+            }
+            
+            let basicDetails = [];
+            let extendedDetails = [];
             
             switch (resource.kind) {
                 case 'Deployment':
                 case 'StatefulSet':
-                    details.push(`Replicas: ${resource.replicas}`);
-                    if (resource.containers.length > 0) {
-                        details.push(`Containers: ${resource.containers.length}`);
+                    basicDetails.push(`Replicas: ${resource.replicas}`);
+                    if (resource.containers && resource.containers.length > 0) {
+                        basicDetails.push(`Containers: ${resource.containers.length}`);
+                        
+                        // Extended details
+                        resource.containers.forEach((container, index) => {
+                            extendedDetails.push(`Container ${index + 1}: ${container.name}`);
+                            if (container.image) extendedDetails.push(`Image: ${container.image}`);
+                            if (container.ports) {
+                                extendedDetails.push(`Ports: ${container.ports.map(p => p.containerPort).join(', ')}`);
+                            }
+                        });
+                    }
+                    if (resource.volumes && resource.volumes.length > 0) {
+                        extendedDetails.push(`Volumes: ${resource.volumes.length}`);
                     }
                     break;
+                    
                 case 'Service':
-                    details.push(`Type: ${resource.type}`);
-                    if (resource.ports.length > 0) {
-                        details.push(`Ports: ${resource.ports.map(p => p.port).join(', ')}`);
+                    basicDetails.push(`Type: ${resource.type}`);
+                    if (resource.ports && resource.ports.length > 0) {
+                        basicDetails.push(`Ports: ${resource.ports.map(p => p.port).join(', ')}`);
+                        
+                        // Extended details
+                        resource.ports.forEach(port => {
+                            extendedDetails.push(`${port.name || 'Port'}: ${port.port}→${port.targetPort || port.port}/${port.protocol || 'TCP'}`);
+                        });
+                    }
+                    if (resource.selector && Object.keys(resource.selector).length > 0) {
+                        extendedDetails.push(`Selector: ${Object.entries(resource.selector).map(([k, v]) => `${k}=${v}`).join(', ')}`);
                     }
                     break;
+                    
                 case 'ConfigMap':
+                    basicDetails.push(`Keys: ${resource.dataKeys.length}`);
+                    if (resource.dataKeys.length > 0) {
+                        extendedDetails.push(`Keys: ${resource.dataKeys.slice(0, 5).join(', ')}${resource.dataKeys.length > 5 ? '...' : ''}`);
+                    }
+                    break;
+                    
                 case 'Secret':
-                    details.push(`Keys: ${resource.dataKeys.length}`);
+                    basicDetails.push(`Keys: ${resource.dataKeys.length}`);
+                    extendedDetails.push(`Type: ${resource.type || 'Opaque'}`);
+                    if (resource.dataKeys.length > 0) {
+                        extendedDetails.push(`Keys: ${resource.dataKeys.slice(0, 3).join(', ')}${resource.dataKeys.length > 3 ? '...' : ''}`);
+                    }
                     break;
+                    
                 case 'PersistentVolumeClaim':
-                    details.push(`Storage: ${resource.storage}`);
-                    details.push(`Class: ${resource.storageClass}`);
+                    basicDetails.push(`Storage: ${resource.storage}`);
+                    basicDetails.push(`Class: ${resource.storageClass}`);
+                    if (resource.accessModes && resource.accessModes.length > 0) {
+                        extendedDetails.push(`Access: ${resource.accessModes.join(', ')}`);
+                    }
                     break;
+                    
                 case 'Ingress':
-                    if (resource.rules.length > 0) {
+                    if (resource.rules && resource.rules.length > 0) {
                         const hosts = resource.rules.map(r => r.host).filter(h => h);
                         if (hosts.length > 0) {
-                            details.push(`Hosts: ${hosts.join(', ')}`);
+                            basicDetails.push(`Hosts: ${hosts.slice(0, 2).join(', ')}${hosts.length > 2 ? '...' : ''}`);
+                        }
+                        
+                        // Extended details
+                        resource.rules.forEach(rule => {
+                            if (rule.host) {
+                                extendedDetails.push(`Host: ${rule.host}`);
+                            }
+                            if (rule.http && rule.http.paths) {
+                                rule.http.paths.forEach(path => {
+                                    extendedDetails.push(`Path: ${path.path} → ${path.backend?.service?.name}:${path.backend?.service?.port?.number}`);
+                                });
+                            }
+                        });
+                    }
+                    if (resource.tls && resource.tls.length > 0) {
+                        extendedDetails.push(`TLS: ${resource.tls.length} certificate(s)`);
+                    }
+                    break;
+                    
+                case 'Pod':
+                    if (resource.containers && resource.containers.length > 0) {
+                        basicDetails.push(`Containers: ${resource.containers.length}`);
+                    }
+                    if (resource.nodeName) {
+                        extendedDetails.push(`Node: ${resource.nodeName}`);
+                    }
+                    if (resource.phase) {
+                        extendedDetails.push(`Phase: ${resource.phase}`);
+                    }
+                    break;
+                    
+                default:
+                    // Generic details for other resource types
+                    if (resource.spec) {
+                        const specKeys = Object.keys(resource.spec);
+                        if (specKeys.length > 0) {
+                            basicDetails.push(`Spec keys: ${specKeys.length}`);
                         }
                     }
+            }
+            
+            // Add namespace if not default
+            if (resource.namespace && resource.namespace !== 'default') {
+                extendedDetails.unshift(`Namespace: ${resource.namespace}`);
+            }
+            
+            // Add labels info
+            if (resource.labels && Object.keys(resource.labels).length > 0) {
+                extendedDetails.push(`Labels: ${Object.keys(resource.labels).length}`);
+            }
+            
+            let html = basicDetails.join('<br>');
+            
+            // Add extended details if available
+            if (extendedDetails.length > 0) {
+                html += '<div class="resource-details-extended">';
+                extendedDetails.forEach(detail => {
+                    const [label, value] = detail.split(': ');
+                    html += `<div class="detail-row">
+                        <span class="detail-label">${label}:</span>
+                        <span class="detail-value">${value || ''}</span>
+                    </div>`;
+                });
+                html += '</div>';
+            }
+            
+            return html;
+        }
+
+        // Get Terraform resource details HTML
+        function getTerraformResourceDetails(resource) {
+            let basicDetails = [];
+            let extendedDetails = [];
+            
+            // Add Terraform-specific type
+            if (resource.terraformType !== 'resource') {
+                basicDetails.push(`Type: ${resource.terraformType}`);
+            }
+            
+            switch (resource.kind) {
+                case 'aws_instance':
+                    if (resource.instanceType) basicDetails.push(`Type: ${resource.instanceType}`);
+                    if (resource.ami) extendedDetails.push(`AMI: ${resource.ami}`);
+                    if (resource.availabilityZone) extendedDetails.push(`AZ: ${resource.availabilityZone}`);
+                    break;
+                    
+                case 'aws_eks_cluster':
+                    if (resource.version) basicDetails.push(`Version: ${resource.version}`);
+                    if (resource.roleArn) extendedDetails.push(`Role: ${resource.roleArn.split('/').pop()}`);
+                    break;
+                    
+                case 'aws_rds_instance':
+                    if (resource.engine) basicDetails.push(`Engine: ${resource.engine}`);
+                    if (resource.engineVersion) extendedDetails.push(`Version: ${resource.engineVersion}`);
+                    if (resource.instanceClass) extendedDetails.push(`Class: ${resource.instanceClass}`);
+                    break;
+                    
+                case 'google_compute_instance':
+                    if (resource.machineType) basicDetails.push(`Type: ${resource.machineType.split('/').pop()}`);
+                    if (resource.zone) extendedDetails.push(`Zone: ${resource.zone}`);
+                    break;
+                    
+                case 'google_container_cluster':
+                    if (resource.location) basicDetails.push(`Location: ${resource.location}`);
+                    if (resource.nodeVersion) extendedDetails.push(`Version: ${resource.nodeVersion}`);
+                    break;
+                    
+                case 'azurerm_virtual_machine':
+                    if (resource.vmSize) basicDetails.push(`Size: ${resource.vmSize}`);
+                    if (resource.location) extendedDetails.push(`Region: ${resource.location}`);
+                    break;
+                    
+                case 'azurerm_kubernetes_cluster':
+                    if (resource.location) basicDetails.push(`Region: ${resource.location}`);
+                    if (resource.kubernetesVersion) extendedDetails.push(`K8s: ${resource.kubernetesVersion}`);
                     break;
             }
             
-            return details.join('<br>');
+            // Add count if > 1
+            if (resource.count && resource.count > 1) {
+                basicDetails.push(`Count: ${resource.count}`);
+            }
+            
+            // Add tags if available
+            if (resource.tags && Object.keys(resource.tags).length > 0) {
+                extendedDetails.push(`Tags: ${Object.keys(resource.tags).length}`);
+            }
+            
+            let html = basicDetails.join('<br>');
+            
+            // Add extended details
+            if (extendedDetails.length > 0) {
+                html += '<div class="resource-details-extended">';
+                extendedDetails.forEach(detail => {
+                    const [label, value] = detail.split(': ');
+                    html += `<div class="detail-row">
+                        <span class="detail-label">${label}:</span>
+                        <span class="detail-value">${value || ''}</span>
+                    </div>`;
+                });
+                html += '</div>';
+            }
+            
+            return html;
         }
 
         // Draw connections between nodes
@@ -1512,6 +2033,76 @@ type: Opaque
 data:
   password: cG9zdGdyZXM=`;
               
+            // Terraform examples
+            const awsEksYaml = `resource "aws_eks_cluster" "main" {
+  name     = "my-eks-cluster"
+  role_arn = aws_iam_role.cluster.arn
+  version  = "1.27"
+
+  vpc_config {
+    subnet_ids = [aws_subnet.private[0].id, aws_subnet.private[1].id]
+  }
+}
+
+resource "aws_instance" "worker_nodes" {
+  count           = 3
+  ami             = "ami-0abcdef1234567890"
+  instance_type   = "t3.medium"
+  availability_zone = "us-west-2a"
+  
+  tags = {
+    Name = "eks-worker-node"
+    Environment = "production"
+  }
+}
+
+resource "aws_rds_instance" "postgres" {
+  identifier     = "mydb"
+  engine         = "postgres"
+  engine_version = "13.7"
+  instance_class = "db.t3.micro"
+  
+  tags = {
+    Name = "main-database"
+  }
+}`;
+
+            const gcpClusterYaml = `resource "google_container_cluster" "primary" {
+  name     = "gke-cluster"
+  location = "us-central1"
+  node_version = "1.27.3-gke.100"
+  
+  node_config {
+    machine_type = "e2-medium"
+  }
+}
+
+resource "google_compute_instance" "vm" {
+  name         = "web-server"
+  machine_type = "e2-micro"
+  zone         = "us-central1-a"
+  
+  tags = ["web", "production"]
+}`;
+
+            const azureClusterYaml = `resource "azurerm_kubernetes_cluster" "main" {
+  name                = "aks-cluster"
+  location            = "East US"
+  kubernetes_version  = "1.27.1"
+  
+  default_node_pool {
+    name       = "default"
+    node_count = 2
+    vm_size    = "Standard_D2_v2"
+  }
+}
+
+resource "azurerm_virtual_machine" "web" {
+  name     = "web-vm"
+  location = "East US"
+  vm_size  = "Standard_B1s"
+}`;
+              
             // Parse each file separately
             parseAndAddFile('deployment.yaml', deploymentYaml);
             parseAndAddFile('service.yaml', serviceYaml);
@@ -1519,6 +2110,11 @@ data:
             parseAndAddFile('ingress.yaml', ingressYaml);
             parseAndAddFile('statefulset.yaml', statefulsetYaml);
             parseAndAddFile('secret.yaml', secretYaml);
+            
+            // Add Terraform examples
+            parseAndAddTerraformFile('aws-infrastructure.tf', awsEksYaml);
+            parseAndAddTerraformFile('gcp-resources.tf', gcpClusterYaml);
+            parseAndAddTerraformFile('azure-cluster.tf', azureClusterYaml);
         }
 
         // Add example button to controls
