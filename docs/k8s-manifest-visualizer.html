@@ -1347,7 +1347,8 @@
             const k8sResources = resources.filter(r => r.fileType !== 'terraform');
             const terraformResources = resources.filter(r => r.fileType === 'terraform');
 
-            let containerIndex = 0;
+            let accumulatedHeight = 0;
+            const containerSpacing = 30;
 
             // Group Kubernetes resources by namespace
             if (k8sResources.length > 0) {
@@ -1361,15 +1362,22 @@
                 });
 
                 // Create namespace containers for Kubernetes
-                Object.entries(namespaces).forEach(([namespace, nsResources]) => {
+                Object.entries(namespaces).forEach(([namespace, nsResources], index) => {
                     if (Object.keys(namespaces).length > 1 || terraformResources.length > 0) {
-                        const nsContainer = createNamespaceContainer(`k8s-${namespace}`, containerIndex, 'Kubernetes');
+                        const nsContainer = createNamespaceContainer(`k8s-${namespace}`, index, 'Kubernetes', nsResources);
                         nsContainer.id = `ns-k8s-${namespace}`;
+                        nsContainer.style.position = 'absolute';
+                        nsContainer.style.top = `${accumulatedHeight}px`;
+                        nsContainer.style.left = '0px';
                         visualizationContainer.appendChild(nsContainer);
+                        
+                        // Update accumulated height
+                        const dimensions = calculateContainerDimensions(nsResources, `k8s-${namespace}`);
+                        accumulatedHeight += dimensions.height + containerSpacing;
                     }
 
                     // Position resources based on current layout
-                    positionResources(nsResources, `k8s-${namespace}`, containerIndex);
+                    positionResources(nsResources, `k8s-${namespace}`, index);
                     
                     // Create resource nodes
                     nsResources.forEach(resource => {
@@ -1380,8 +1388,6 @@
                             visualizationContainer.appendChild(node);
                         }
                     });
-
-                    containerIndex++;
                 });
             }
 
@@ -1397,22 +1403,30 @@
                 });
 
                 // Create provider containers for Terraform
-                Object.entries(providers).forEach(([provider, providerResources]) => {
-                    const providerContainer = createProviderContainer(provider, containerIndex);
+                Object.entries(providers).forEach(([provider, providerResources], index) => {
+                    const providerContainer = createProviderContainer(provider, index, providerResources);
+                    providerContainer.style.position = 'absolute';
+                    providerContainer.style.top = `${accumulatedHeight}px`;
+                    providerContainer.style.left = '0px';
                     visualizationContainer.appendChild(providerContainer);
+                    
+                    // Update accumulated height
+                    const dimensions = calculateContainerDimensions(providerResources, provider);
+                    accumulatedHeight += dimensions.height + containerSpacing;
 
                     // Position resources based on current layout
-                    positionResources(providerResources, provider, containerIndex);
+                    positionResources(providerResources, provider, index);
                     
                     // Create resource nodes
                     providerResources.forEach(resource => {
                         const node = createResourceNode(resource);
                         document.getElementById(`provider-${provider}`).appendChild(node);
                     });
-
-                    containerIndex++;
                 });
             }
+
+            // Set the total height of the visualization container
+            visualizationContainer.style.height = `${Math.max(accumulatedHeight, 600)}px`;
 
             // Draw connections after a short delay to ensure nodes are rendered
             setTimeout(() => {
@@ -1420,13 +1434,17 @@
             }, 100);
         }
 
-        // Create namespace container
-        function createNamespaceContainer(namespace, index, type = 'Kubernetes') {
+        // Create namespace container with dynamic sizing
+        function createNamespaceContainer(namespace, index, type = 'Kubernetes', resources = []) {
             const container = document.createElement('div');
             container.className = 'namespace-container';
             container.style.position = 'relative';
-            container.style.minHeight = '400px';
-            container.style.marginTop = index > 0 ? '20px' : '0';
+            
+            // Calculate and apply dimensions
+            const dimensions = calculateContainerDimensions(resources, namespace);
+            container.style.width = `${dimensions.width}px`;
+            container.style.height = `${dimensions.height}px`;
+            container.style.minHeight = `${dimensions.height}px`;
             
             const label = document.createElement('div');
             label.className = 'namespace-label';
@@ -1440,14 +1458,18 @@
             return container;
         }
 
-        // Create provider container for Terraform resources
-        function createProviderContainer(provider, index) {
+        // Create provider container for Terraform resources with dynamic sizing
+        function createProviderContainer(provider, index, resources = []) {
             const container = document.createElement('div');
             container.className = 'namespace-container';
             container.id = `provider-${provider}`;
             container.style.position = 'relative';
-            container.style.minHeight = '400px';
-            container.style.marginTop = index > 0 ? '20px' : '0';
+            
+            // Calculate and apply dimensions
+            const dimensions = calculateContainerDimensions(resources, provider);
+            container.style.width = `${dimensions.width}px`;
+            container.style.height = `${dimensions.height}px`;
+            container.style.minHeight = `${dimensions.height}px`;
             
             // Provider-specific styling
             switch (provider) {
@@ -1574,6 +1596,85 @@
                 resource.x = startX + (col * spacingX);
                 resource.y = startY + (row * spacingY);
             });
+        }
+
+        // Calculate container dimensions based on its content
+        function calculateContainerDimensions(resources, containerName) {
+            if (resources.length === 0) {
+                return { width: 300, height: 200 };
+            }
+
+            const nodeWidth = 220;
+            const nodeHeight = 140;
+            const spacingX = 250;
+            const spacingY = 160;
+            const maxColumns = 4;
+            const padding = 50;
+            const labelHeight = 30;
+            const groupSpacing = 30;
+
+            let totalWidth = 0;
+            let totalHeight = labelHeight + padding; // Start with label and top padding
+
+            if (containerName.startsWith('k8s-')) {
+                // Calculate for Kubernetes resources
+                const groups = {
+                    ingress: resources.filter(r => r.kind === 'Ingress'),
+                    service: resources.filter(r => r.kind === 'Service'),
+                    workload: resources.filter(r => ['Deployment', 'StatefulSet', 'DaemonSet', 'Pod', 'Job', 'CronJob'].includes(r.kind)),
+                    config: resources.filter(r => ['ConfigMap', 'Secret'].includes(r.kind)),
+                    storage: resources.filter(r => r.kind === 'PersistentVolumeClaim'),
+                    other: resources.filter(r => !['Ingress', 'Service', 'Deployment', 'StatefulSet', 'DaemonSet', 'Pod', 'Job', 'CronJob', 'ConfigMap', 'Secret', 'PersistentVolumeClaim'].includes(r.kind))
+                };
+
+                ['ingress', 'service', 'workload', 'config', 'storage', 'other'].forEach(groupName => {
+                    const groupResources = groups[groupName];
+                    if (groupResources.length > 0) {
+                        const rows = Math.ceil(groupResources.length / maxColumns);
+                        const cols = Math.min(groupResources.length, maxColumns);
+                        
+                        totalHeight += (rows * spacingY) + groupSpacing;
+                        totalWidth = Math.max(totalWidth, (cols * spacingX) + padding);
+                    }
+                });
+            } else {
+                // Calculate for Cloud resources
+                const groups = {
+                    network: resources.filter(r => r.kind.toLowerCase().includes('vpc') || r.kind.toLowerCase().includes('network') || r.kind.toLowerCase().includes('subnet')),
+                    compute: resources.filter(r => r.kind.toLowerCase().includes('instance') || r.kind.toLowerCase().includes('vm')),
+                    kubernetes: resources.filter(r => r.kind.toLowerCase().includes('cluster') || r.kind.toLowerCase().includes('eks') || r.kind.toLowerCase().includes('gke') || r.kind.toLowerCase().includes('aks')),
+                    database: resources.filter(r => r.kind.toLowerCase().includes('rds') || r.kind.toLowerCase().includes('sql') || r.kind.toLowerCase().includes('database')),
+                    storage: resources.filter(r => r.kind.toLowerCase().includes('bucket') || r.kind.toLowerCase().includes('storage')),
+                    other: resources.filter(r => {
+                        const kind = r.kind.toLowerCase();
+                        return !kind.includes('vpc') && !kind.includes('network') && !kind.includes('subnet') &&
+                               !kind.includes('instance') && !kind.includes('vm') &&
+                               !kind.includes('cluster') && !kind.includes('eks') && !kind.includes('gke') && !kind.includes('aks') &&
+                               !kind.includes('rds') && !kind.includes('sql') && !kind.includes('database') &&
+                               !kind.includes('bucket') && !kind.includes('storage');
+                    })
+                };
+
+                ['network', 'compute', 'kubernetes', 'database', 'storage', 'other'].forEach(groupName => {
+                    const groupResources = groups[groupName];
+                    if (groupResources.length > 0) {
+                        const rows = Math.ceil(groupResources.length / maxColumns);
+                        const cols = Math.min(groupResources.length, maxColumns);
+                        
+                        totalHeight += (rows * spacingY) + groupSpacing;
+                        totalWidth = Math.max(totalWidth, (cols * spacingX) + padding);
+                    }
+                });
+            }
+
+            // Add bottom padding
+            totalHeight += padding;
+            
+            // Ensure minimum dimensions
+            totalWidth = Math.max(totalWidth, 400);
+            totalHeight = Math.max(totalHeight, 250);
+
+            return { width: totalWidth, height: totalHeight };
         }
 
 
