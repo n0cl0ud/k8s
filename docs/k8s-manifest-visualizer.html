@@ -891,15 +891,18 @@
 
         // Extract Terraform resource information
         function extractTerraformResourceInfo(resource) {
+            const provider = getProviderFromResourceType(resource.resourceType || resource.type);
             const info = {
                 kind: resource.resourceType || resource.type,
                 name: resource.name,
-                namespace: 'terraform',
+                namespace: null, // Terraform resources don't have namespaces
+                region: null, // Will be set based on resource attributes
+                provider: provider,
                 labels: {},
                 annotations: {},
                 id: `${resource.resourceType || resource.type}-${resource.name}`,
                 terraformType: resource.type,
-                provider: getProviderFromResourceType(resource.resourceType || resource.type)
+                cloudProvider: provider
             };
 
             // Parse the body for common attributes
@@ -911,32 +914,42 @@
                     info.instanceType = attributes.instance_type || 'unknown';
                     info.ami = attributes.ami || 'unknown';
                     info.availabilityZone = attributes.availability_zone || 'unknown';
+                    info.region = attributes.availability_zone ? attributes.availability_zone.slice(0, -1) : 'us-west-2';
                     break;
                 case 'aws_eks_cluster':
                     info.version = attributes.version || 'unknown';
                     info.roleArn = attributes.role_arn || 'unknown';
+                    info.region = 'us-west-2'; // Default, should be extracted from provider config
                     break;
                 case 'aws_rds_instance':
                     info.engine = attributes.engine || 'unknown';
                     info.engineVersion = attributes.engine_version || 'unknown';
                     info.instanceClass = attributes.instance_class || 'unknown';
+                    info.region = 'us-west-2';
                     break;
                 case 'google_compute_instance':
                     info.machineType = attributes.machine_type || 'unknown';
                     info.zone = attributes.zone || 'unknown';
+                    info.region = attributes.zone ? attributes.zone.split('-').slice(0, 2).join('-') : 'us-central1';
                     break;
                 case 'google_container_cluster':
                     info.location = attributes.location || 'unknown';
                     info.nodeVersion = attributes.node_version || 'unknown';
+                    info.region = attributes.location || 'us-central1';
                     break;
                 case 'azurerm_virtual_machine':
                     info.vmSize = attributes.vm_size || 'unknown';
                     info.location = attributes.location || 'unknown';
+                    info.region = attributes.location || 'East US';
                     break;
                 case 'azurerm_kubernetes_cluster':
                     info.location = attributes.location || 'unknown';
                     info.kubernetesVersion = attributes.kubernetes_version || 'unknown';
+                    info.region = attributes.location || 'East US';
                     break;
+                default:
+                    // Try to extract region from common attributes
+                    info.region = attributes.region || attributes.location || attributes.zone || 'default';
             }
 
             // Add common attributes
@@ -1066,8 +1079,12 @@
                 resourceCounts[resource.kind] = (resourceCounts[resource.kind] || 0) + 1;
             });
             
-            // Count namespaces
-            const namespaces = new Set(resources.map(r => r.namespace));
+            // Count Kubernetes namespaces and Cloud providers
+            const k8sResources = resources.filter(r => r.fileType !== 'terraform');
+            const terraformResources = resources.filter(r => r.fileType === 'terraform');
+            
+            const namespaces = new Set(k8sResources.map(r => r.namespace).filter(ns => ns));
+            const providers = new Set(terraformResources.map(r => r.cloudProvider).filter(p => p));
             
             statsGrid.innerHTML = `
                 <div class="stat-item">
@@ -1079,14 +1096,35 @@
                     <div class="stat-label">Files</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-value">${namespaces.size}</div>
-                    <div class="stat-label">Namespaces</div>
+                    <div class="stat-value">${k8sResources.length}</div>
+                    <div class="stat-label">K8s Resources</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-value">${connections.length}</div>
-                    <div class="stat-label">Connections</div>
+                    <div class="stat-value">${terraformResources.length}</div>
+                    <div class="stat-label">Cloud Resources</div>
                 </div>
             `;
+            
+            // Add more specific stats
+            if (namespaces.size > 0) {
+                const nsStatItem = document.createElement('div');
+                nsStatItem.className = 'stat-item';
+                nsStatItem.innerHTML = `
+                    <div class="stat-value">${namespaces.size}</div>
+                    <div class="stat-label">K8s Namespaces</div>
+                `;
+                statsGrid.appendChild(nsStatItem);
+            }
+            
+            if (providers.size > 0) {
+                const providerStatItem = document.createElement('div');
+                providerStatItem.className = 'stat-item';
+                providerStatItem.innerHTML = `
+                    <div class="stat-value">${providers.size}</div>
+                    <div class="stat-label">Cloud Providers</div>
+                `;
+                statsGrid.appendChild(providerStatItem);
+            }
             
             // Add resource type counts
             Object.entries(resourceCounts)
@@ -1283,38 +1321,76 @@
             visualizationContainer.innerHTML = '';
             document.getElementById('legend').style.display = 'block';
 
-            // Group resources by namespace
-            const namespaces = {};
-            resources.forEach(resource => {
-                if (!namespaces[resource.namespace]) {
-                    namespaces[resource.namespace] = [];
-                }
-                namespaces[resource.namespace].push(resource);
-            });
+            // Separate Kubernetes and Terraform resources
+            const k8sResources = resources.filter(r => r.fileType !== 'terraform');
+            const terraformResources = resources.filter(r => r.fileType === 'terraform');
 
-            // Create namespace containers
-            let namespaceIndex = 0;
-            Object.entries(namespaces).forEach(([namespace, nsResources]) => {
-                if (Object.keys(namespaces).length > 1) {
-                    const nsContainer = createNamespaceContainer(namespace, namespaceIndex);
-                    visualizationContainer.appendChild(nsContainer);
-                }
+            let containerIndex = 0;
 
-                // Position resources based on current layout
-                positionResources(nsResources, namespace, namespaceIndex);
-                
-                // Create resource nodes
-                nsResources.forEach(resource => {
-                    const node = createResourceNode(resource);
-                    if (Object.keys(namespaces).length > 1) {
-                        document.getElementById(`ns-${namespace}`).appendChild(node);
-                    } else {
-                        visualizationContainer.appendChild(node);
+            // Group Kubernetes resources by namespace
+            if (k8sResources.length > 0) {
+                const namespaces = {};
+                k8sResources.forEach(resource => {
+                    const ns = resource.namespace || 'default';
+                    if (!namespaces[ns]) {
+                        namespaces[ns] = [];
                     }
+                    namespaces[ns].push(resource);
                 });
 
-                namespaceIndex++;
-            });
+                // Create namespace containers for Kubernetes
+                Object.entries(namespaces).forEach(([namespace, nsResources]) => {
+                    if (Object.keys(namespaces).length > 1 || terraformResources.length > 0) {
+                        const nsContainer = createNamespaceContainer(`k8s-${namespace}`, containerIndex, 'Kubernetes');
+                        nsContainer.id = `ns-k8s-${namespace}`;
+                        visualizationContainer.appendChild(nsContainer);
+                    }
+
+                    // Position resources based on current layout
+                    positionResources(nsResources, `k8s-${namespace}`, containerIndex);
+                    
+                    // Create resource nodes
+                    nsResources.forEach(resource => {
+                        const node = createResourceNode(resource);
+                        if (Object.keys(namespaces).length > 1 || terraformResources.length > 0) {
+                            document.getElementById(`ns-k8s-${namespace}`).appendChild(node);
+                        } else {
+                            visualizationContainer.appendChild(node);
+                        }
+                    });
+
+                    containerIndex++;
+                });
+            }
+
+            // Group Terraform resources by provider
+            if (terraformResources.length > 0) {
+                const providers = {};
+                terraformResources.forEach(resource => {
+                    const provider = resource.cloudProvider || 'terraform';
+                    if (!providers[provider]) {
+                        providers[provider] = [];
+                    }
+                    providers[provider].push(resource);
+                });
+
+                // Create provider containers for Terraform
+                Object.entries(providers).forEach(([provider, providerResources]) => {
+                    const providerContainer = createProviderContainer(provider, containerIndex);
+                    visualizationContainer.appendChild(providerContainer);
+
+                    // Position resources based on current layout
+                    positionResources(providerResources, provider, containerIndex);
+                    
+                    // Create resource nodes
+                    providerResources.forEach(resource => {
+                        const node = createResourceNode(resource);
+                        document.getElementById(`provider-${provider}`).appendChild(node);
+                    });
+
+                    containerIndex++;
+                });
+            }
 
             // Draw connections after a short delay to ensure nodes are rendered
             setTimeout(() => {
@@ -1323,25 +1399,76 @@
         }
 
         // Create namespace container
-        function createNamespaceContainer(namespace, index) {
+        function createNamespaceContainer(namespace, index, type = 'Kubernetes') {
             const container = document.createElement('div');
             container.className = 'namespace-container';
-            container.id = `ns-${namespace}`;
             container.style.position = 'relative';
             container.style.minHeight = '400px';
             container.style.marginTop = index > 0 ? '20px' : '0';
             
             const label = document.createElement('div');
             label.className = 'namespace-label';
-            label.textContent = `Namespace: ${namespace}`;
+            if (type === 'Kubernetes') {
+                const cleanNamespace = namespace.replace('k8s-', '');
+                label.textContent = `K8s Namespace: ${cleanNamespace}`;
+                label.style.background = '#2196F3';
+            }
+            container.appendChild(label);
+            
+            return container;
+        }
+
+        // Create provider container for Terraform resources
+        function createProviderContainer(provider, index) {
+            const container = document.createElement('div');
+            container.className = 'namespace-container';
+            container.id = `provider-${provider}`;
+            container.style.position = 'relative';
+            container.style.minHeight = '400px';
+            container.style.marginTop = index > 0 ? '20px' : '0';
+            
+            // Provider-specific styling
+            switch (provider) {
+                case 'AWS':
+                    container.style.borderColor = 'rgba(255, 153, 0, 0.5)';
+                    break;
+                case 'GCP':
+                    container.style.borderColor = 'rgba(66, 133, 244, 0.5)';
+                    break;
+                case 'Azure':
+                    container.style.borderColor = 'rgba(0, 120, 212, 0.5)';
+                    break;
+                default:
+                    container.style.borderColor = 'rgba(98, 60, 228, 0.5)';
+            }
+            
+            const label = document.createElement('div');
+            label.className = 'namespace-label';
+            label.textContent = `${provider} Infrastructure`;
+            
+            // Provider-specific label colors
+            switch (provider) {
+                case 'AWS':
+                    label.style.background = '#FF9900';
+                    break;
+                case 'GCP':
+                    label.style.background = '#4285F4';
+                    break;
+                case 'Azure':
+                    label.style.background = '#0078D4';
+                    break;
+                default:
+                    label.style.background = '#623CE4';
+            }
+            
             container.appendChild(label);
             
             return container;
         }
 
         // Position resources based on layout
-        function positionResources(resources, namespace, namespaceIndex) {
-            const baseY = namespaceIndex * 450;
+        function positionResources(resources, containerName, containerIndex) {
+            const baseY = containerIndex * 450;
             
             switch (currentLayout) {
                 case 'hierarchical':
@@ -1351,7 +1478,12 @@
                     positionCircular(resources, baseY);
                     break;
                 default:
-                    positionAuto(resources, baseY);
+                    // Use different positioning for Terraform vs K8s
+                    if (containerName.startsWith('k8s-')) {
+                        positionAuto(resources, baseY);
+                    } else {
+                        positionCloudResources(resources, baseY);
+                    }
             }
         }
 
@@ -1395,6 +1527,55 @@
                 });
                 
                 if (layerResources.length > 0) {
+                    x += spacing;
+                }
+            });
+        }
+
+        // Cloud resources positioning (by service type)
+        function positionCloudResources(resources, baseY) {
+            // Group cloud resources by service type
+            const serviceGroups = {
+                compute: [],
+                kubernetes: [],
+                database: [],
+                storage: [],
+                network: [],
+                other: []
+            };
+
+            resources.forEach(resource => {
+                const kind = resource.kind.toLowerCase();
+                if (kind.includes('instance') || kind.includes('vm')) {
+                    serviceGroups.compute.push(resource);
+                } else if (kind.includes('cluster') || kind.includes('eks') || kind.includes('gke') || kind.includes('aks')) {
+                    serviceGroups.kubernetes.push(resource);
+                } else if (kind.includes('rds') || kind.includes('sql') || kind.includes('database')) {
+                    serviceGroups.database.push(resource);
+                } else if (kind.includes('bucket') || kind.includes('storage')) {
+                    serviceGroups.storage.push(resource);
+                } else if (kind.includes('vpc') || kind.includes('network') || kind.includes('subnet')) {
+                    serviceGroups.network.push(resource);
+                } else {
+                    serviceGroups.other.push(resource);
+                }
+            });
+
+            // Position each service group
+            let x = 50;
+            const spacing = 280;
+            const services = ['network', 'compute', 'kubernetes', 'database', 'storage', 'other'];
+            
+            services.forEach(service => {
+                const serviceResources = serviceGroups[service];
+                if (serviceResources.length > 0) {
+                    let y = baseY + 50;
+                    
+                    serviceResources.forEach((resource, index) => {
+                        resource.x = x;
+                        resource.y = y + (index * 120);
+                    });
+                    
                     x += spacing;
                 }
             });
