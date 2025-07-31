@@ -897,12 +897,11 @@
                 name: resource.name,
                 namespace: null, // Terraform resources don't have namespaces
                 region: null, // Will be set based on resource attributes
-                provider: provider,
+                cloudProvider: provider, // Use consistent naming
                 labels: {},
                 annotations: {},
                 id: `${resource.resourceType || resource.type}-${resource.name}`,
-                terraformType: resource.type,
-                cloudProvider: provider
+                terraformType: resource.type
             };
 
             // Parse the body for common attributes
@@ -961,9 +960,21 @@
 
         // Get cloud provider from resource type
         function getProviderFromResourceType(resourceType) {
-            if (resourceType.startsWith('aws_')) return 'AWS';
-            if (resourceType.startsWith('google_')) return 'GCP';
-            if (resourceType.startsWith('azurerm_')) return 'Azure';
+            console.log('Determining provider for resource type:', resourceType);
+            
+            if (resourceType && resourceType.startsWith('aws_')) {
+                console.log('-> AWS');
+                return 'AWS';
+            }
+            if (resourceType && resourceType.startsWith('google_')) {
+                console.log('-> GCP'); 
+                return 'GCP';
+            }
+            if (resourceType && resourceType.startsWith('azurerm_')) {
+                console.log('-> Azure');
+                return 'Azure';
+            }
+            console.log('-> Terraform (default)');
             return 'Terraform';
         }
 
@@ -1367,6 +1378,14 @@
             if (terraformResources.length > 0) {
                 const providers = {};
                 terraformResources.forEach(resource => {
+                    // Debug: log the resource to see what's happening
+                    console.log('Processing Terraform resource:', {
+                        kind: resource.kind,
+                        name: resource.name,
+                        cloudProvider: resource.cloudProvider,
+                        fileName: resource.fileName
+                    });
+                    
                     const provider = resource.cloudProvider || 'terraform';
                     if (!providers[provider]) {
                         providers[provider] = [];
@@ -1374,8 +1393,12 @@
                     providers[provider].push(resource);
                 });
 
+                console.log('Grouped providers:', Object.keys(providers));
+
                 // Create provider containers for Terraform
                 Object.entries(providers).forEach(([provider, providerResources]) => {
+                    console.log(`Creating container for ${provider} with ${providerResources.length} resources`);
+                    
                     const providerContainer = createProviderContainer(provider, containerIndex);
                     visualizationContainer.appendChild(providerContainer);
 
@@ -1688,10 +1711,10 @@
             node.appendChild(details);
             
             // Add cloud provider badge for Terraform resources
-            if (resource.fileType === 'terraform' && resource.provider && resource.provider !== 'Terraform') {
+            if (resource.fileType === 'terraform' && resource.cloudProvider && resource.cloudProvider !== 'Terraform') {
                 const badge = document.createElement('div');
                 badge.className = 'cloud-provider-badge';
-                badge.textContent = resource.provider;
+                badge.textContent = resource.cloudProvider;
                 node.appendChild(badge);
             }
             
