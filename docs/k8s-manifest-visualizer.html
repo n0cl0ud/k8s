@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes Manifest Visualizer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            animation: fadeIn 1s ease-out;
+        }
+        
+        .subtitle {
+            text-align: center;
+            opacity: 0.9;
+            margin-bottom: 30px;
+            font-size: 1.2em;
+            animation: fadeIn 1s ease-out 0.3s;
+            animation-fill-mode: both;
+        }
+        
+        .main-layout {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 30px;
+            min-height: 80vh;
+        }
+        
+        .drop-zone {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 3px dashed rgba(255, 255, 255, 0.5);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            height: fit-content;
+        }
+        
+        .drop-zone:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: #4CAF50;
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+        }
+        
+        .drop-zone.drag-over {
+            background: rgba(76, 175, 80, 0.2);
+            border-color: #4CAF50;
+            border-width: 4px;
+            transform: scale(1.02);
+        }
+        
+        .drop-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            opacity: 0.8;
+        }
+        
+        .drop-text {
+            font-size: 1.3em;
+            margin-bottom: 15px;
+        }
+        
+        .drop-subtext {
+            font-size: 0.9em;
+            opacity: 0.7;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .visualization-area {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            min-height: 600px;
+            position: relative;
+            overflow: auto;
+        }
+        
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            opacity: 0.5;
+        }
+        
+        .empty-state-icon {
+            font-size: 6em;
+            margin-bottom: 20px;
+        }
+        
+        .empty-state-text {
+            font-size: 1.2em;
+        }
+        
+        .architecture-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            min-height: 600px;
+        }
+        
+        .resource-node {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            min-width: 200px;
+            cursor: move;
+            transition: all 0.3s ease;
+            animation: nodeAppear 0.5s ease-out;
+            border: 2px solid transparent;
+        }
+        
+        .resource-node:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+        
+        .resource-node.deployment {
+            border-color: #2196F3;
+            box-shadow: 0 0 20px rgba(33, 150, 243, 0.3);
+        }
+        
+        .resource-node.service {
+            border-color: #4CAF50;
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.3);
+        }
+        
+        .resource-node.configmap {
+            border-color: #FF9800;
+            box-shadow: 0 0 20px rgba(255, 152, 0, 0.3);
+        }
+        
+        .resource-node.secret {
+            border-color: #E91E63;
+            box-shadow: 0 0 20px rgba(233, 30, 99, 0.3);
+        }
+        
+        .resource-node.ingress {
+            border-color: #9C27B0;
+            box-shadow: 0 0 20px rgba(156, 39, 176, 0.3);
+        }
+        
+        .resource-node.persistentvolumeclaim {
+            border-color: #795548;
+            box-shadow: 0 0 20px rgba(121, 85, 72, 0.3);
+        }
+        
+        .resource-node.statefulset {
+            border-color: #00BCD4;
+            box-shadow: 0 0 20px rgba(0, 188, 212, 0.3);
+        }
+        
+        .resource-node.daemonset {
+            border-color: #FFC107;
+            box-shadow: 0 0 20px rgba(255, 193, 7, 0.3);
+        }
+        
+        .resource-icon {
+            font-size: 2.5em;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        .resource-kind {
+            font-size: 0.8em;
+            opacity: 0.7;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+        
+        .resource-name {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .resource-details {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-top: 10px;
+        }
+        
+        .connection-line {
+            position: absolute;
+            background: linear-gradient(90deg, rgba(76, 175, 80, 0.8), rgba(76, 175, 80, 0.3));
+            height: 2px;
+            transform-origin: left center;
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .connection-arrow {
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-left: 8px solid rgba(76, 175, 80, 0.8);
+            border-top: 4px solid transparent;
+            border-bottom: 4px solid transparent;
+            right: -8px;
+            top: -3px;
+        }
+        
+        .yaml-preview {
+            background: #1a1a1a;
+            color: #f8f8f2;
+            font-family: 'Courier New', monospace;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre;
+            font-size: 0.9em;
+            border-left: 5px solid #4CAF50;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+        
+        .control-button {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s ease;
+        }
+        
+        .control-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .control-button.active {
+            background: #4CAF50;
+        }
+        
+        .legend {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 0.9em;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 5px;
+            margin-right: 10px;
+            border: 2px solid;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes nodeAppear {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        .error-message {
+            background: rgba(244, 67, 54, 0.2);
+            border: 2px solid #f44336;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            animation: shake 0.5s ease-out;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        
+        .namespace-container {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        
+        .namespace-label {
+            position: absolute;
+            top: -12px;
+            left: 20px;
+            background: #2a5298;
+            padding: 0 10px;
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Kubernetes Manifest Visualizer</h1>
+        <p class="subtitle">Drag & drop your YAML manifests to visualize the architecture</p>
+        
+        <div class="main-layout">
+            <div class="left-panel">
+                <div class="drop-zone" id="dropZone">
+                    <div class="drop-icon">📁</div>
+                    <div class="drop-text">Drop your YAML file here</div>
+                    <div class="drop-subtext">or click to browse</div>
+                    <input type="file" id="fileInput" class="file-input" accept=".yaml,.yml">
+                </div>
+                
+                <div id="yamlPreview" style="display: none;">
+                    <h3 style="margin-top: 20px; margin-bottom: 10px;">📄 Loaded Manifest:</h3>
+                    <div class="yaml-preview" id="yamlContent"></div>
+                </div>
+                
+                <div id="errorContainer"></div>
+            </div>
+            
+            <div class="visualization-area">
+                <div class="controls">
+                    <button class="control-button active" onclick="setLayout('auto')">🔄 Auto Layout</button>
+                    <button class="control-button" onclick="setLayout('hierarchical')">📊 Hierarchical</button>
+                    <button class="control-button" onclick="setLayout('circular')">⭕ Circular</button>
+                    <button class="control-button" onclick="clearVisualization()">🗑️ Clear</button>
+                </div>
+                
+                <div id="visualizationContainer" class="architecture-container">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🎯</div>
+                        <div class="empty-state-text">Drop a YAML manifest to visualize</div>
+                    </div>
+                </div>
+                
+                <div class="legend" style="display: none;" id="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="border-color: #2196F3;"></div>
+                        <span>Deployment</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="border-color: #4CAF50;"></div>
+                        <span>Service</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="border-color: #FF9800;"></div>
+                        <span>ConfigMap</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="border-color: #E91E63;"></div>
+                        <span>Secret</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="border-color: #9C27B0;"></div>
+                        <span>Ingress</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="border-color: #795548;"></div>
+                        <span>PVC</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let resources = [];
+        let connections = [];
+        let currentLayout = 'auto';
+        let draggedElement = null;
+        let dragOffset = { x: 0, y: 0 };
+
+        // Resource icons mapping
+        const resourceIcons = {
+            'Deployment': '🚀',
+            'Service': '🌐',
+            'ConfigMap': '⚙️',
+            'Secret': '🔐',
+            'Ingress': '🚪',
+            'PersistentVolumeClaim': '💾',
+            'StatefulSet': '🗂️',
+            'DaemonSet': '😈',
+            'Pod': '📦',
+            'ReplicaSet': '♻️',
+            'Job': '⚡',
+            'CronJob': '⏰',
+            'NetworkPolicy': '🛡️',
+            'ServiceAccount': '👤',
+            'Role': '🎭',
+            'RoleBinding': '🔗',
+            'ClusterRole': '👑',
+            'ClusterRoleBinding': '🔗',
+            'HorizontalPodAutoscaler': '📈',
+            'PodDisruptionBudget': '🛡️'
+        };
+
+        // Setup drag and drop
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const visualizationContainer = document.getElementById('visualizationContainer');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+        
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('drag-over');
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        // Handle file processing
+        function handleFile(file) {
+            if (!file.name.match(/\.(yaml|yml)$/i)) {
+                showError('Please select a YAML file');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const content = e.target.result;
+                    parseAndVisualize(content);
+                    showYamlPreview(content);
+                } catch (error) {
+                    showError('Error reading file: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // Parse YAML and create visualization
+        function parseAndVisualize(yamlContent) {
+            try {
+                resources = [];
+                connections = [];
+                
+                // Parse YAML documents (support multi-document YAML)
+                const documents = jsyaml.loadAll(yamlContent);
+                
+                documents.forEach(doc => {
+                    if (doc && doc.kind) {
+                        resources.push(extractResourceInfo(doc));
+                    }
+                });
+
+                if (resources.length === 0) {
+                    showError('No valid Kubernetes resources found in the YAML');
+                    return;
+                }
+
+                // Find connections between resources
+                findConnections();
+                
+                // Visualize the architecture
+                visualizeArchitecture();
+                
+                // Clear any previous errors
+                document.getElementById('errorContainer').innerHTML = '';
+                
+            } catch (error) {
+                showError('Error parsing YAML: ' + error.message);
+            }
+        }
+
+        // Extract resource information
+        function extractResourceInfo(resource) {
+            const info = {
+                kind: resource.kind,
+                apiVersion: resource.apiVersion,
+                name: resource.metadata?.name || 'unnamed',
+                namespace: resource.metadata?.namespace || 'default',
+                labels: resource.metadata?.labels || {},
+                annotations: resource.metadata?.annotations || {},
+                spec: resource.spec || {},
+                data: resource.data || {},
+                id: `${resource.kind}-${resource.metadata?.name || Math.random()}`
+            };
+
+            // Extract additional relevant information based on resource type
+            switch (resource.kind) {
+                case 'Deployment':
+                case 'StatefulSet':
+                case 'DaemonSet':
+                    info.replicas = resource.spec?.replicas || 1;
+                    info.selector = resource.spec?.selector?.matchLabels || {};
+                    info.containers = resource.spec?.template?.spec?.containers || [];
+                    info.volumes = resource.spec?.template?.spec?.volumes || [];
+                    break;
+                case 'Service':
+                    info.selector = resource.spec?.selector || {};
+                    info.ports = resource.spec?.ports || [];
+                    info.type = resource.spec?.type || 'ClusterIP';
+                    break;
+                case 'Ingress':
+                    info.rules = resource.spec?.rules || [];
+                    info.tls = resource.spec?.tls || [];
+                    break;
+                case 'ConfigMap':
+                case 'Secret':
+                    info.dataKeys = Object.keys(resource.data || {});
+                    break;
+                case 'PersistentVolumeClaim':
+                    info.storageClass = resource.spec?.storageClassName || 'default';
+                    info.accessModes = resource.spec?.accessModes || [];
+                    info.storage = resource.spec?.resources?.requests?.storage || 'unknown';
+                    break;
+            }
+
+            return info;
+        }
+
+        // Find connections between resources
+        function findConnections() {
+            resources.forEach(resource => {
+                // Find Service -> Deployment/StatefulSet connections
+                if (resource.kind === 'Service' && resource.selector) {
+                    resources.forEach(target => {
+                        if (['Deployment', 'StatefulSet', 'DaemonSet', 'Pod'].includes(target.kind)) {
+                            if (matchLabels(resource.selector, target.labels) || 
+                                matchLabels(resource.selector, target.selector)) {
+                                connections.push({
+                                    from: resource.id,
+                                    to: target.id,
+                                    type: 'selector'
+                                });
+                            }
+                        }
+                    });
+                }
+
+                // Find Ingress -> Service connections
+                if (resource.kind === 'Ingress') {
+                    resource.rules.forEach(rule => {
+                        if (rule.http?.paths) {
+                            rule.http.paths.forEach(path => {
+                                const serviceName = path.backend?.service?.name;
+                                if (serviceName) {
+                                    const service = resources.find(r => 
+                                        r.kind === 'Service' && r.name === serviceName
+                                    );
+                                    if (service) {
+                                        connections.push({
+                                            from: resource.id,
+                                            to: service.id,
+                                            type: 'backend'
+                                        });
+                                    }
+                                }
+                            });
+                        }
+                    });
+                }
+
+                // Find Volume mount connections
+                if (['Deployment', 'StatefulSet', 'DaemonSet'].includes(resource.kind)) {
+                    resource.volumes?.forEach(volume => {
+                        // ConfigMap volumes
+                        if (volume.configMap?.name) {
+                            const configMap = resources.find(r => 
+                                r.kind === 'ConfigMap' && r.name === volume.configMap.name
+                            );
+                            if (configMap) {
+                                connections.push({
+                                    from: resource.id,
+                                    to: configMap.id,
+                                    type: 'volume'
+                                });
+                            }
+                        }
+                        // Secret volumes
+                        if (volume.secret?.secretName) {
+                            const secret = resources.find(r => 
+                                r.kind === 'Secret' && r.name === volume.secret.secretName
+                            );
+                            if (secret) {
+                                connections.push({
+                                    from: resource.id,
+                                    to: secret.id,
+                                    type: 'volume'
+                                });
+                            }
+                        }
+                        // PVC volumes
+                        if (volume.persistentVolumeClaim?.claimName) {
+                            const pvc = resources.find(r => 
+                                r.kind === 'PersistentVolumeClaim' && 
+                                r.name === volume.persistentVolumeClaim.claimName
+                            );
+                            if (pvc) {
+                                connections.push({
+                                    from: resource.id,
+                                    to: pvc.id,
+                                    type: 'volume'
+                                });
+                            }
+                        }
+                    });
+
+                    // Environment variable connections
+                    resource.containers?.forEach(container => {
+                        container.env?.forEach(env => {
+                            if (env.valueFrom?.configMapKeyRef?.name) {
+                                const configMap = resources.find(r => 
+                                    r.kind === 'ConfigMap' && 
+                                    r.name === env.valueFrom.configMapKeyRef.name
+                                );
+                                if (configMap) {
+                                    connections.push({
+                                        from: resource.id,
+                                        to: configMap.id,
+                                        type: 'env'
+                                    });
+                                }
+                            }
+                            if (env.valueFrom?.secretKeyRef?.name) {
+                                const secret = resources.find(r => 
+                                    r.kind === 'Secret' && 
+                                    r.name === env.valueFrom.secretKeyRef.name
+                                );
+                                if (secret) {
+                                    connections.push({
+                                        from: resource.id,
+                                        to: secret.id,
+                                        type: 'env'
+                                    });
+                                }
+                            }
+                        });
+                    });
+                }
+            });
+        }
+
+        // Check if labels match
+        function matchLabels(selector, labels) {
+            if (!selector || !labels) return false;
+            return Object.entries(selector).every(([key, value]) => labels[key] === value);
+        }
+
+        // Visualize the architecture
+        function visualizeArchitecture() {
+            visualizationContainer.innerHTML = '';
+            document.getElementById('legend').style.display = 'block';
+
+            // Group resources by namespace
+            const namespaces = {};
+            resources.forEach(resource => {
+                if (!namespaces[resource.namespace]) {
+                    namespaces[resource.namespace] = [];
+                }
+                namespaces[resource.namespace].push(resource);
+            });
+
+            // Create namespace containers
+            let namespaceIndex = 0;
+            Object.entries(namespaces).forEach(([namespace, nsResources]) => {
+                if (Object.keys(namespaces).length > 1) {
+                    const nsContainer = createNamespaceContainer(namespace, namespaceIndex);
+                    visualizationContainer.appendChild(nsContainer);
+                }
+
+                // Position resources based on current layout
+                positionResources(nsResources, namespace, namespaceIndex);
+                
+                // Create resource nodes
+                nsResources.forEach(resource => {
+                    const node = createResourceNode(resource);
+                    if (Object.keys(namespaces).length > 1) {
+                        document.getElementById(`ns-${namespace}`).appendChild(node);
+                    } else {
+                        visualizationContainer.appendChild(node);
+                    }
+                });
+
+                namespaceIndex++;
+            });
+
+            // Draw connections after a short delay to ensure nodes are rendered
+            setTimeout(() => {
+                drawConnections();
+            }, 100);
+        }
+
+        // Create namespace container
+        function createNamespaceContainer(namespace, index) {
+            const container = document.createElement('div');
+            container.className = 'namespace-container';
+            container.id = `ns-${namespace}`;
+            container.style.position = 'relative';
+            container.style.minHeight = '400px';
+            container.style.marginTop = index > 0 ? '20px' : '0';
+            
+            const label = document.createElement('div');
+            label.className = 'namespace-label';
+            label.textContent = `Namespace: ${namespace}`;
+            container.appendChild(label);
+            
+            return container;
+        }
+
+        // Position resources based on layout
+        function positionResources(resources, namespace, namespaceIndex) {
+            const baseY = namespaceIndex * 450;
+            
+            switch (currentLayout) {
+                case 'hierarchical':
+                    positionHierarchical(resources, baseY);
+                    break;
+                case 'circular':
+                    positionCircular(resources, baseY);
+                    break;
+                default:
+                    positionAuto(resources, baseY);
+            }
+        }
+
+        // Auto layout positioning
+        function positionAuto(resources, baseY) {
+            // Group resources by type
+            const groups = {
+                ingress: [],
+                service: [],
+                workload: [],
+                config: [],
+                storage: []
+            };
+
+            resources.forEach(resource => {
+                if (resource.kind === 'Ingress') {
+                    groups.ingress.push(resource);
+                } else if (resource.kind === 'Service') {
+                    groups.service.push(resource);
+                } else if (['Deployment', 'StatefulSet', 'DaemonSet', 'Pod'].includes(resource.kind)) {
+                    groups.workload.push(resource);
+                } else if (['ConfigMap', 'Secret'].includes(resource.kind)) {
+                    groups.config.push(resource);
+                } else if (resource.kind === 'PersistentVolumeClaim') {
+                    groups.storage.push(resource);
+                }
+            });
+
+            // Position each group
+            let x = 50;
+            const layers = ['ingress', 'service', 'workload', 'config', 'storage'];
+            
+            layers.forEach((layer, layerIndex) => {
+                const layerResources = groups[layer];
+                const spacing = 250;
+                let y = baseY + 50;
+                
+                layerResources.forEach((resource, index) => {
+                    resource.x = x;
+                    resource.y = y + (index * 150);
+                });
+                
+                if (layerResources.length > 0) {
+                    x += spacing;
+                }
+            });
+        }
+
+        // Hierarchical layout positioning
+        function positionHierarchical(resources, baseY) {
+            const levels = assignLevels(resources);
+            const levelGroups = {};
+            
+            resources.forEach(resource => {
+                const level = levels[resource.id] || 0;
+                if (!levelGroups[level]) {
+                    levelGroups[level] = [];
+                }
+                levelGroups[level].push(resource);
+            });
+
+            Object.entries(levelGroups).forEach(([level, levelResources]) => {
+                const x = 100 + (parseInt(level) * 300);
+                const totalHeight = levelResources.length * 150;
+                const startY = baseY + (400 - totalHeight) / 2;
+                
+                levelResources.forEach((resource, index) => {
+                    resource.x = x;
+                    resource.y = startY + (index * 150);
+                });
+            });
+        }
+
+        // Assign levels for hierarchical layout
+        function assignLevels(resources) {
+            const levels = {};
+            const visited = new Set();
+            
+            // Start with resources that have no incoming connections
+            resources.forEach(resource => {
+                const hasIncoming = connections.some(conn => conn.to === resource.id);
+                if (!hasIncoming) {
+                    assignLevel(resource.id, 0, levels, visited);
+                }
+            });
+
+            // Assign levels to remaining resources
+            resources.forEach(resource => {
+                if (!visited.has(resource.id)) {
+                    assignLevel(resource.id, 0, levels, visited);
+                }
+            });
+
+            return levels;
+        }
+
+        function assignLevel(resourceId, level, levels, visited) {
+            if (visited.has(resourceId)) return;
+            
+            visited.add(resourceId);
+            levels[resourceId] = level;
+            
+            // Find connected resources
+            connections.forEach(conn => {
+                if (conn.from === resourceId) {
+                    const targetLevel = Math.max(levels[conn.to] || 0, level + 1);
+                    levels[conn.to] = targetLevel;
+                }
+            });
+        }
+
+        // Circular layout positioning
+        function positionCircular(resources, baseY) {
+            const centerX = 400;
+            const centerY = baseY + 200;
+            const radius = 200;
+            const angleStep = (2 * Math.PI) / resources.length;
+            
+            resources.forEach((resource, index) => {
+                const angle = index * angleStep;
+                resource.x = centerX + radius * Math.cos(angle);
+                resource.y = centerY + radius * Math.sin(angle);
+            });
+        }
+
+        // Create resource node element
+        function createResourceNode(resource) {
+            const node = document.createElement('div');
+            node.className = `resource-node ${resource.kind.toLowerCase()}`;
+            node.id = resource.id;
+            node.style.left = `${resource.x}px`;
+            node.style.top = `${resource.y}px`;
+            
+            const icon = document.createElement('div');
+            icon.className = 'resource-icon';
+            icon.textContent = resourceIcons[resource.kind] || '📄';
+            
+            const kind = document.createElement('div');
+            kind.className = 'resource-kind';
+            kind.textContent = resource.kind;
+            
+            const name = document.createElement('div');
+            name.className = 'resource-name';
+            name.textContent = resource.name;
+            
+            const details = document.createElement('div');
+            details.className = 'resource-details';
+            details.innerHTML = getResourceDetails(resource);
+            
+            node.appendChild(icon);
+            node.appendChild(kind);
+            node.appendChild(name);
+            node.appendChild(details);
+            
+            // Make node draggable
+            node.addEventListener('mousedown', startDrag);
+            
+            return node;
+        }
+
+        // Get resource details HTML
+        function getResourceDetails(resource) {
+            let details = [];
+            
+            switch (resource.kind) {
+                case 'Deployment':
+                case 'StatefulSet':
+                    details.push(`Replicas: ${resource.replicas}`);
+                    if (resource.containers.length > 0) {
+                        details.push(`Containers: ${resource.containers.length}`);
+                    }
+                    break;
+                case 'Service':
+                    details.push(`Type: ${resource.type}`);
+                    if (resource.ports.length > 0) {
+                        details.push(`Ports: ${resource.ports.map(p => p.port).join(', ')}`);
+                    }
+                    break;
+                case 'ConfigMap':
+                case 'Secret':
+                    details.push(`Keys: ${resource.dataKeys.length}`);
+                    break;
+                case 'PersistentVolumeClaim':
+                    details.push(`Storage: ${resource.storage}`);
+                    details.push(`Class: ${resource.storageClass}`);
+                    break;
+                case 'Ingress':
+                    if (resource.rules.length > 0) {
+                        const hosts = resource.rules.map(r => r.host).filter(h => h);
+                        if (hosts.length > 0) {
+                            details.push(`Hosts: ${hosts.join(', ')}`);
+                        }
+                    }
+                    break;
+            }
+            
+            return details.join('<br>');
+        }
+
+        // Draw connections between nodes
+        function drawConnections() {
+            // Remove existing connections
+            document.querySelectorAll('.connection-line').forEach(line => line.remove());
+            
+            connections.forEach(connection => {
+                const fromNode = document.getElementById(connection.from);
+                const toNode = document.getElementById(connection.to);
+                
+                if (fromNode && toNode) {
+                    drawConnection(fromNode, toNode, connection.type);
+                }
+            });
+        }
+
+        // Draw a single connection
+        function drawConnection(fromNode, toNode, type) {
+            const line = document.createElement('div');
+            line.className = 'connection-line';
+            
+            const fromRect = fromNode.getBoundingClientRect();
+            const toRect = toNode.getBoundingClientRect();
+            const containerRect = visualizationContainer.getBoundingClientRect();
+            
+            const fromX = fromRect.left + fromRect.width / 2 - containerRect.left;
+            const fromY = fromRect.top + fromRect.height / 2 - containerRect.top;
+            const toX = toRect.left + toRect.width / 2 - containerRect.left;
+            const toY = toRect.top + toRect.height / 2 - containerRect.top;
+            
+            const distance = Math.sqrt(Math.pow(toX - fromX, 2) + Math.pow(toY - fromY, 2));
+            const angle = Math.atan2(toY - fromY, toX - fromX);
+            
+            line.style.width = `${distance}px`;
+            line.style.left = `${fromX}px`;
+            line.style.top = `${fromY}px`;
+            line.style.transform = `rotate(${angle}rad)`;
+            
+            // Add arrow
+            const arrow = document.createElement('div');
+            arrow.className = 'connection-arrow';
+            line.appendChild(arrow);
+            
+            // Set connection color based on type
+            switch (type) {
+                case 'selector':
+                    line.style.background = 'linear-gradient(90deg, rgba(76, 175, 80, 0.8), rgba(76, 175, 80, 0.3))';
+                    arrow.style.borderLeftColor = 'rgba(76, 175, 80, 0.8)';
+                    break;
+                case 'backend':
+                    line.style.background = 'linear-gradient(90deg, rgba(156, 39, 176, 0.8), rgba(156, 39, 176, 0.3))';
+                    arrow.style.borderLeftColor = 'rgba(156, 39, 176, 0.8)';
+                    break;
+                case 'volume':
+                    line.style.background = 'linear-gradient(90deg, rgba(255, 152, 0, 0.8), rgba(255, 152, 0, 0.3))';
+                    arrow.style.borderLeftColor = 'rgba(255, 152, 0, 0.8)';
+                    break;
+                case 'env':
+                    line.style.background = 'linear-gradient(90deg, rgba(33, 150, 243, 0.8), rgba(33, 150, 243, 0.3))';
+                    arrow.style.borderLeftColor = 'rgba(33, 150, 243, 0.8)';
+                    break;
+            }
+            
+            visualizationContainer.appendChild(line);
+        }
+
+        // Drag functionality
+        function startDrag(e) {
+            draggedElement = e.currentTarget;
+            const rect = draggedElement.getBoundingClientRect();
+            const containerRect = visualizationContainer.getBoundingClientRect();
+            
+            dragOffset.x = e.clientX - rect.left;
+            dragOffset.y = e.clientY - rect.top;
+            
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', stopDrag);
+            
+            draggedElement.style.zIndex = 1000;
+            draggedElement.style.cursor = 'grabbing';
+        }
+
+        function drag(e) {
+            if (!draggedElement) return;
+            
+            const containerRect = visualizationContainer.getBoundingClientRect();
+            const x = e.clientX - containerRect.left - dragOffset.x;
+            const y = e.clientY - containerRect.top - dragOffset.y;
+            
+            draggedElement.style.left = `${x}px`;
+            draggedElement.style.top = `${y}px`;
+            
+            // Update resource position
+            const resource = resources.find(r => r.id === draggedElement.id);
+            if (resource) {
+                resource.x = x;
+                resource.y = y;
+            }
+            
+            // Redraw connections
+            drawConnections();
+        }
+
+        function stopDrag() {
+            if (draggedElement) {
+                draggedElement.style.zIndex = '';
+                draggedElement.style.cursor = 'move';
+                draggedElement = null;
+            }
+            
+            document.removeEventListener('mousemove', drag);
+            document.removeEventListener('mouseup', stopDrag);
+        }
+
+        // Layout controls
+        function setLayout(layout) {
+            currentLayout = layout;
+            document.querySelectorAll('.control-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            if (resources.length > 0) {
+                visualizeArchitecture();
+            }
+        }
+
+        function clearVisualization() {
+            resources = [];
+            connections = [];
+            visualizationContainer.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">🎯</div>
+                    <div class="empty-state-text">Drop a YAML manifest to visualize</div>
+                </div>
+            `;
+            document.getElementById('yamlPreview').style.display = 'none';
+            document.getElementById('legend').style.display = 'none';
+            document.getElementById('errorContainer').innerHTML = '';
+        }
+
+        // Show YAML preview
+        function showYamlPreview(content) {
+            document.getElementById('yamlPreview').style.display = 'block';
+            document.getElementById('yamlContent').textContent = content.length > 1000 
+                ? content.substring(0, 1000) + '...\n(truncated)' 
+                : content;
+        }
+
+        // Show error message
+        function showError(message) {
+            const errorContainer = document.getElementById('errorContainer');
+            errorContainer.innerHTML = `
+                <div class="error-message">
+                    ⚠️ ${message}
+                </div>
+            `;
+        }
+
+        // Example manifests for testing
+        function loadExample() {
+            const exampleYaml = `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.14.2
+        ports:
+        - containerPort: 80
+        env:
+        - name: CONFIG_VALUE
+          valueFrom:
+            configMapKeyRef:
+              name: nginx-config
+              key: config.value
+        volumeMounts:
+        - name: config
+          mountPath: /etc/nginx/conf.d
+      volumes:
+      - name: config
+        configMap:
+          name: nginx-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec:
+  selector:
+    app: nginx
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+data:
+  config.value: "production"
+  nginx.conf: |
+    server {
+        listen 80;
+        server_name example.com;
+        location / {
+            root /usr/share/nginx/html;
+            index index.html;
+        }
+    }
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx-service
+            port:
+              number: 80`;
+              
+            parseAndVisualize(exampleYaml);
+            showYamlPreview(exampleYaml);
+        }
+
+        // Add example button to controls
+        const controls = document.querySelector('.controls');
+        const exampleButton = document.createElement('button');
+        exampleButton.className = 'control-button';
+        exampleButton.textContent = '📝 Load Example';
+        exampleButton.onclick = loadExample;
+        controls.appendChild(exampleButton);
+    </script>
+</body>
+</html>
