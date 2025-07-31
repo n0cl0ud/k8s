@@ -426,6 +426,8 @@
             padding: 20px;
             margin-bottom: 20px;
             position: relative;
+            min-height: 400px;
+            overflow: hidden;
         }
         
         .namespace-label {
@@ -830,60 +832,75 @@
             }
         }
 
-        // Simple Terraform HCL parser
+        // Improved Terraform HCL parser
         function parseTerraformContent(content) {
             const resources = [];
             
-            // Match resource blocks: resource "type" "name" { ... }
-            const resourceRegex = /resource\s+"([^"]+)"\s+"([^"]+)"\s*{([^{}]*(?:{[^{}]*}[^{}]*)*)}/g;
+            // Clean and normalize content
+            const cleanContent = content.replace(/\/\*[\s\S]*?\*\//g, '') // Remove block comments
+                                       .replace(/\/\/.*$/gm, '') // Remove line comments
+                                       .replace(/\s+/g, ' ') // Normalize whitespace
+                                       .trim();
+            
+            // Improved regex for resource blocks with better brace matching
+            const resourcePattern = /resource\s+"([^"]+)"\s+"([^"]+)"\s*\{/g;
             let match;
             
-            while ((match = resourceRegex.exec(content)) !== null) {
-                const [, type, name, body] = match;
-                resources.push({
-                    type: 'resource',
-                    resourceType: type,
-                    name: name,
-                    body: body.trim(),
-                    fullMatch: match[0]
-                });
+            while ((match = resourcePattern.exec(cleanContent)) !== null) {
+                const [fullMatch, type, name] = match;
+                const startIndex = match.index + fullMatch.length;
+                
+                // Find the matching closing brace
+                let braceCount = 1;
+                let endIndex = startIndex;
+                
+                while (braceCount > 0 && endIndex < cleanContent.length) {
+                    const char = cleanContent[endIndex];
+                    if (char === '{') braceCount++;
+                    if (char === '}') braceCount--;
+                    endIndex++;
+                }
+                
+                if (braceCount === 0) {
+                    const body = cleanContent.substring(startIndex, endIndex - 1).trim();
+                    
+                    resources.push({
+                        type: 'resource',
+                        resourceType: type,
+                        name: name,
+                        body: body,
+                        fullMatch: cleanContent.substring(match.index, endIndex)
+                    });
+                }
             }
             
-            // Match data blocks: data "type" "name" { ... }
-            const dataRegex = /data\s+"([^"]+)"\s+"([^"]+)"\s*{([^{}]*(?:{[^{}]*}[^{}]*)*)}/g;
-            while ((match = dataRegex.exec(content)) !== null) {
-                const [, type, name, body] = match;
-                resources.push({
-                    type: 'data',
-                    resourceType: type,
-                    name: name,
-                    body: body.trim(),
-                    fullMatch: match[0]
-                });
-            }
-            
-            // Match variables: variable "name" { ... }
-            const variableRegex = /variable\s+"([^"]+)"\s*{([^{}]*(?:{[^{}]*}[^{}]*)*)}/g;
-            while ((match = variableRegex.exec(content)) !== null) {
-                const [, name, body] = match;
-                resources.push({
-                    type: 'variable',
-                    name: name,
-                    body: body.trim(),
-                    fullMatch: match[0]
-                });
-            }
-            
-            // Match outputs: output "name" { ... }
-            const outputRegex = /output\s+"([^"]+)"\s*{([^{}]*(?:{[^{}]*}[^{}]*)*)}/g;
-            while ((match = outputRegex.exec(content)) !== null) {
-                const [, name, body] = match;
-                resources.push({
-                    type: 'output',
-                    name: name,
-                    body: body.trim(),
-                    fullMatch: match[0]
-                });
+            // Similar pattern for data sources
+            const dataPattern = /data\s+"([^"]+)"\s+"([^"]+)"\s*\{/g;
+            while ((match = dataPattern.exec(cleanContent)) !== null) {
+                const [fullMatch, type, name] = match;
+                const startIndex = match.index + fullMatch.length;
+                
+                let braceCount = 1;
+                let endIndex = startIndex;
+                
+                while (braceCount > 0 && endIndex < cleanContent.length) {
+                    const char = cleanContent[endIndex];
+                    if (char === '{') braceCount++;
+                    if (char === '}') braceCount--;
+                    endIndex++;
+                }
+                
+                if (braceCount === 0) {
+                    const body = cleanContent.substring(startIndex, endIndex - 1).trim();
+                    
+                    resources.push({
+                        type: 'data',
+                        resourceType: type,
+                        name: name,
+                        body: body,
+                        fullMatch: cleanContent.substring(match.index, endIndex)
+                    });
+                }
             }
             
             return resources;
@@ -960,21 +977,15 @@
 
         // Get cloud provider from resource type
         function getProviderFromResourceType(resourceType) {
-            console.log('Determining provider for resource type:', resourceType);
-            
             if (resourceType && resourceType.startsWith('aws_')) {
-                console.log('-> AWS');
                 return 'AWS';
             }
             if (resourceType && resourceType.startsWith('google_')) {
-                console.log('-> GCP'); 
                 return 'GCP';
             }
             if (resourceType && resourceType.startsWith('azurerm_')) {
-                console.log('-> Azure');
                 return 'Azure';
             }
-            console.log('-> Terraform (default)');
             return 'Terraform';
         }
 
@@ -1378,27 +1389,15 @@
             if (terraformResources.length > 0) {
                 const providers = {};
                 terraformResources.forEach(resource => {
-                    // Debug: log the resource to see what's happening
-                    console.log('Processing Terraform resource:', {
-                        kind: resource.kind,
-                        name: resource.name,
-                        cloudProvider: resource.cloudProvider,
-                        fileName: resource.fileName
-                    });
-                    
-                    const provider = resource.cloudProvider || 'terraform';
+                    const provider = resource.cloudProvider || 'Terraform';
                     if (!providers[provider]) {
                         providers[provider] = [];
                     }
                     providers[provider].push(resource);
                 });
 
-                console.log('Grouped providers:', Object.keys(providers));
-
                 // Create provider containers for Terraform
                 Object.entries(providers).forEach(([provider, providerResources]) => {
-                    console.log(`Creating container for ${provider} with ${providerResources.length} resources`);
-                    
                     const providerContainer = createProviderContainer(provider, containerIndex);
                     visualizationContainer.appendChild(providerContainer);
 
@@ -1489,123 +1488,97 @@
             return container;
         }
 
-        // Position resources based on layout
+        // Position resources based on layout with proper container constraints
         function positionResources(resources, containerName, containerIndex) {
-            const baseY = containerIndex * 450;
+            // Each container gets its own coordinate space starting from (0,0)
+            const containerPadding = 50;
+            const startX = containerPadding;
+            const startY = containerPadding + 30; // Account for container label
             
             switch (currentLayout) {
                 case 'hierarchical':
-                    positionHierarchical(resources, baseY);
+                    positionHierarchical(resources, startY, containerName);
                     break;
                 case 'circular':
-                    positionCircular(resources, baseY);
+                    positionCircular(resources, startY, containerName);
                     break;
                 default:
-                    // Use different positioning for Terraform vs K8s
-                    if (containerName.startsWith('k8s-')) {
-                        positionAuto(resources, baseY);
-                    } else {
-                        positionCloudResources(resources, baseY);
-                    }
+                    positionGridLayout(resources, startX, startY, containerName);
             }
         }
 
-        // Auto layout positioning
-        function positionAuto(resources, baseY) {
-            // Group resources by type
-            const groups = {
-                ingress: [],
-                service: [],
-                workload: [],
-                config: [],
-                storage: []
-            };
-
-            resources.forEach(resource => {
-                if (resource.kind === 'Ingress') {
-                    groups.ingress.push(resource);
-                } else if (resource.kind === 'Service') {
-                    groups.service.push(resource);
-                } else if (['Deployment', 'StatefulSet', 'DaemonSet', 'Pod'].includes(resource.kind)) {
-                    groups.workload.push(resource);
-                } else if (['ConfigMap', 'Secret'].includes(resource.kind)) {
-                    groups.config.push(resource);
-                } else if (resource.kind === 'PersistentVolumeClaim') {
-                    groups.storage.push(resource);
-                }
-            });
-
-            // Position each group
-            let x = 50;
-            const layers = ['ingress', 'service', 'workload', 'config', 'storage'];
+        // Grid layout positioning - clean and predictable
+        function positionGridLayout(resources, startX, startY, containerName) {
+            const nodeWidth = 220;
+            const nodeHeight = 140;
+            const spacingX = 250;
+            const spacingY = 160;
+            const maxColumns = 4; // Maximum resources per row
             
-            layers.forEach((layer, layerIndex) => {
-                const layerResources = groups[layer];
-                const spacing = 250;
-                let y = baseY + 50;
+            if (containerName.startsWith('k8s-')) {
+                // Kubernetes resources: group by logical layers
+                const groups = {
+                    ingress: resources.filter(r => r.kind === 'Ingress'),
+                    service: resources.filter(r => r.kind === 'Service'),
+                    workload: resources.filter(r => ['Deployment', 'StatefulSet', 'DaemonSet', 'Pod', 'Job', 'CronJob'].includes(r.kind)),
+                    config: resources.filter(r => ['ConfigMap', 'Secret'].includes(r.kind)),
+                    storage: resources.filter(r => r.kind === 'PersistentVolumeClaim'),
+                    other: resources.filter(r => !['Ingress', 'Service', 'Deployment', 'StatefulSet', 'DaemonSet', 'Pod', 'Job', 'CronJob', 'ConfigMap', 'Secret', 'PersistentVolumeClaim'].includes(r.kind))
+                };
                 
-                layerResources.forEach((resource, index) => {
-                    resource.x = x;
-                    resource.y = y + (index * 150);
+                let currentY = startY;
+                
+                ['ingress', 'service', 'workload', 'config', 'storage', 'other'].forEach(groupName => {
+                    const groupResources = groups[groupName];
+                    if (groupResources.length > 0) {
+                        positionResourcesInGrid(groupResources, startX, currentY, spacingX, spacingY, maxColumns);
+                        currentY += Math.ceil(groupResources.length / maxColumns) * spacingY + 30; // Add some spacing between groups
+                    }
                 });
+            } else {
+                // Terraform/Cloud resources: group by service type
+                const groups = {
+                    network: resources.filter(r => r.kind.toLowerCase().includes('vpc') || r.kind.toLowerCase().includes('network') || r.kind.toLowerCase().includes('subnet')),
+                    compute: resources.filter(r => r.kind.toLowerCase().includes('instance') || r.kind.toLowerCase().includes('vm')),
+                    kubernetes: resources.filter(r => r.kind.toLowerCase().includes('cluster') || r.kind.toLowerCase().includes('eks') || r.kind.toLowerCase().includes('gke') || r.kind.toLowerCase().includes('aks')),
+                    database: resources.filter(r => r.kind.toLowerCase().includes('rds') || r.kind.toLowerCase().includes('sql') || r.kind.toLowerCase().includes('database')),
+                    storage: resources.filter(r => r.kind.toLowerCase().includes('bucket') || r.kind.toLowerCase().includes('storage')),
+                    other: resources.filter(r => {
+                        const kind = r.kind.toLowerCase();
+                        return !kind.includes('vpc') && !kind.includes('network') && !kind.includes('subnet') &&
+                               !kind.includes('instance') && !kind.includes('vm') &&
+                               !kind.includes('cluster') && !kind.includes('eks') && !kind.includes('gke') && !kind.includes('aks') &&
+                               !kind.includes('rds') && !kind.includes('sql') && !kind.includes('database') &&
+                               !kind.includes('bucket') && !kind.includes('storage');
+                    })
+                };
                 
-                if (layerResources.length > 0) {
-                    x += spacing;
-                }
+                let currentY = startY;
+                
+                ['network', 'compute', 'kubernetes', 'database', 'storage', 'other'].forEach(groupName => {
+                    const groupResources = groups[groupName];
+                    if (groupResources.length > 0) {
+                        positionResourcesInGrid(groupResources, startX, currentY, spacingX, spacingY, maxColumns);
+                        currentY += Math.ceil(groupResources.length / maxColumns) * spacingY + 30;
+                    }
+                });
+            }
+        }
+        
+        // Helper function to position resources in a grid
+        function positionResourcesInGrid(resources, startX, startY, spacingX, spacingY, maxColumns) {
+            resources.forEach((resource, index) => {
+                const col = index % maxColumns;
+                const row = Math.floor(index / maxColumns);
+                
+                resource.x = startX + (col * spacingX);
+                resource.y = startY + (row * spacingY);
             });
         }
 
-        // Cloud resources positioning (by service type)
-        function positionCloudResources(resources, baseY) {
-            // Group cloud resources by service type
-            const serviceGroups = {
-                compute: [],
-                kubernetes: [],
-                database: [],
-                storage: [],
-                network: [],
-                other: []
-            };
-
-            resources.forEach(resource => {
-                const kind = resource.kind.toLowerCase();
-                if (kind.includes('instance') || kind.includes('vm')) {
-                    serviceGroups.compute.push(resource);
-                } else if (kind.includes('cluster') || kind.includes('eks') || kind.includes('gke') || kind.includes('aks')) {
-                    serviceGroups.kubernetes.push(resource);
-                } else if (kind.includes('rds') || kind.includes('sql') || kind.includes('database')) {
-                    serviceGroups.database.push(resource);
-                } else if (kind.includes('bucket') || kind.includes('storage')) {
-                    serviceGroups.storage.push(resource);
-                } else if (kind.includes('vpc') || kind.includes('network') || kind.includes('subnet')) {
-                    serviceGroups.network.push(resource);
-                } else {
-                    serviceGroups.other.push(resource);
-                }
-            });
-
-            // Position each service group
-            let x = 50;
-            const spacing = 280;
-            const services = ['network', 'compute', 'kubernetes', 'database', 'storage', 'other'];
-            
-            services.forEach(service => {
-                const serviceResources = serviceGroups[service];
-                if (serviceResources.length > 0) {
-                    let y = baseY + 50;
-                    
-                    serviceResources.forEach((resource, index) => {
-                        resource.x = x;
-                        resource.y = y + (index * 120);
-                    });
-                    
-                    x += spacing;
-                }
-            });
-        }
 
         // Hierarchical layout positioning
-        function positionHierarchical(resources, baseY) {
+        function positionHierarchical(resources, startY, containerName) {
             const levels = assignLevels(resources);
             const levelGroups = {};
             
@@ -1618,13 +1591,12 @@
             });
 
             Object.entries(levelGroups).forEach(([level, levelResources]) => {
-                const x = 100 + (parseInt(level) * 300);
-                const totalHeight = levelResources.length * 150;
-                const startY = baseY + (400 - totalHeight) / 2;
+                const x = 50 + (parseInt(level) * 280);
+                const spacingY = 160;
                 
                 levelResources.forEach((resource, index) => {
                     resource.x = x;
-                    resource.y = startY + (index * 150);
+                    resource.y = startY + (index * spacingY);
                 });
             });
         }
@@ -1668,10 +1640,10 @@
         }
 
         // Circular layout positioning
-        function positionCircular(resources, baseY) {
+        function positionCircular(resources, startY, containerName) {
             const centerX = 400;
-            const centerY = baseY + 200;
-            const radius = 200;
+            const centerY = startY + 200;
+            const radius = Math.min(200, Math.max(100, resources.length * 15));
             const angleStep = (2 * Math.PI) / resources.length;
             
             resources.forEach((resource, index) => {
@@ -2008,52 +1980,91 @@
             visualizationContainer.appendChild(line);
         }
 
-        // Drag functionality
+        // Drag functionality with container constraints
         function startDrag(e) {
             draggedElement = e.currentTarget;
             const rect = draggedElement.getBoundingClientRect();
-            const containerRect = visualizationContainer.getBoundingClientRect();
+            
+            // Find the parent container
+            const parentContainer = draggedElement.closest('.namespace-container') || visualizationContainer;
+            const containerRect = parentContainer.getBoundingClientRect();
             
             dragOffset.x = e.clientX - rect.left;
             dragOffset.y = e.clientY - rect.top;
+            
+            // Store container bounds for constraint checking
+            draggedElement.parentContainerRect = containerRect;
+            draggedElement.parentContainer = parentContainer;
             
             document.addEventListener('mousemove', drag);
             document.addEventListener('mouseup', stopDrag);
             
             draggedElement.style.zIndex = 1000;
             draggedElement.style.cursor = 'grabbing';
+            draggedElement.style.opacity = '0.8';
         }
 
         function drag(e) {
-            if (!draggedElement) return;
+            if (!draggedElement || !draggedElement.parentContainer) return;
             
-            const containerRect = visualizationContainer.getBoundingClientRect();
-            const x = e.clientX - containerRect.left - dragOffset.x;
-            const y = e.clientY - containerRect.top - dragOffset.y;
+            const parentContainer = draggedElement.parentContainer;
+            const containerRect = parentContainer.getBoundingClientRect();
             
+            // Calculate new position relative to parent container
+            let x = e.clientX - containerRect.left - dragOffset.x;
+            let y = e.clientY - containerRect.top - dragOffset.y;
+            
+            // Apply constraints to keep element within its container
+            const nodeWidth = 200; // Approximate node width
+            const nodeHeight = 150; // Approximate node height
+            const padding = 20;
+            
+            const minX = padding;
+            const maxX = containerRect.width - nodeWidth - padding;
+            const minY = padding + 40; // Account for container label
+            const maxY = containerRect.height - nodeHeight - padding;
+            
+            x = Math.max(minX, Math.min(maxX, x));
+            y = Math.max(minY, Math.min(maxY, y));
+            
+            // Apply the constrained position
             draggedElement.style.left = `${x}px`;
             draggedElement.style.top = `${y}px`;
             
-            // Update resource position
+            // Update resource position in data
             const resource = resources.find(r => r.id === draggedElement.id);
             if (resource) {
+                // Store relative position within container
                 resource.x = x;
                 resource.y = y;
             }
             
-            // Redraw connections
-            drawConnections();
+            // Redraw connections with throttling
+            clearTimeout(draggedElement.connectionTimeout);
+            draggedElement.connectionTimeout = setTimeout(() => {
+                drawConnections();
+            }, 16); // ~60fps
         }
 
         function stopDrag() {
             if (draggedElement) {
                 draggedElement.style.zIndex = '';
                 draggedElement.style.cursor = 'move';
+                draggedElement.style.opacity = '';
+                
+                // Clean up
+                delete draggedElement.parentContainerRect;
+                delete draggedElement.parentContainer;
+                clearTimeout(draggedElement.connectionTimeout);
+                
                 draggedElement = null;
             }
             
             document.removeEventListener('mousemove', drag);
             document.removeEventListener('mouseup', stopDrag);
+            
+            // Final connection redraw
+            drawConnections();
         }
 
         // Layout controls
