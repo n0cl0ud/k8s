@@ -358,6 +358,100 @@
             font-size: 0.9em;
             opacity: 0.8;
         }
+        
+        .files-list {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .files-list h3 {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .file-item:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        .file-name {
+            flex: 1;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .file-resources {
+            font-size: 0.8em;
+            opacity: 0.7;
+            margin-right: 10px;
+        }
+        
+        .remove-file {
+            background: rgba(244, 67, 54, 0.2);
+            border: 1px solid #f44336;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: all 0.3s ease;
+        }
+        
+        .remove-file:hover {
+            background: rgba(244, 67, 54, 0.4);
+            transform: scale(1.05);
+        }
+        
+        .project-stats {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .stat-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
     </style>
 </head>
 <body>
@@ -369,14 +463,19 @@
             <div class="left-panel">
                 <div class="drop-zone" id="dropZone">
                     <div class="drop-icon">📁</div>
-                    <div class="drop-text">Drop your YAML file here</div>
-                    <div class="drop-subtext">or click to browse</div>
-                    <input type="file" id="fileInput" class="file-input" accept=".yaml,.yml">
+                    <div class="drop-text">Drop your YAML files here</div>
+                    <div class="drop-subtext">or click to browse (multiple files supported)</div>
+                    <input type="file" id="fileInput" class="file-input" accept=".yaml,.yml" multiple>
                 </div>
                 
-                <div id="yamlPreview" style="display: none;">
-                    <h3 style="margin-top: 20px; margin-bottom: 10px;">📄 Loaded Manifest:</h3>
-                    <div class="yaml-preview" id="yamlContent"></div>
+                <div id="filesListContainer" class="files-list" style="display: none;">
+                    <h3>📁 Loaded Files <span id="filesCount" style="opacity: 0.7; font-size: 0.9em;">(0)</span></h3>
+                    <div id="filesList"></div>
+                </div>
+                
+                <div id="projectStats" class="project-stats" style="display: none;">
+                    <h3>📊 Project Statistics</h3>
+                    <div class="stats-grid" id="statsGrid"></div>
                 </div>
                 
                 <div id="errorContainer"></div>
@@ -434,6 +533,7 @@
         let currentLayout = 'auto';
         let draggedElement = null;
         let dragOffset = { x: 0, y: 0 };
+        let loadedFiles = new Map(); // Store loaded files with their resources
 
         // Resource icons mapping
         const resourceIcons = {
@@ -481,68 +581,193 @@
             
             const files = e.dataTransfer.files;
             if (files.length > 0) {
-                handleFile(files[0]);
+                handleFiles(Array.from(files));
             }
         });
         
         fileInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
-                handleFile(e.target.files[0]);
+                handleFiles(Array.from(e.target.files));
             }
         });
 
-        // Handle file processing
-        function handleFile(file) {
-            if (!file.name.match(/\.(yaml|yml)$/i)) {
-                showError('Please select a YAML file');
+        // Handle multiple files processing
+        function handleFiles(files) {
+            const yamlFiles = files.filter(file => file.name.match(/\.(yaml|yml)$/i));
+            
+            if (yamlFiles.length === 0) {
+                showError('Please select YAML files');
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                try {
-                    const content = e.target.result;
-                    parseAndVisualize(content);
-                    showYamlPreview(content);
-                } catch (error) {
-                    showError('Error reading file: ' + error.message);
-                }
-            };
-            reader.readAsText(file);
+            yamlFiles.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const content = e.target.result;
+                        parseAndAddFile(file.name, content);
+                    } catch (error) {
+                        showError(`Error reading ${file.name}: ${error.message}`);
+                    }
+                };
+                reader.readAsText(file);
+            });
         }
 
-        // Parse YAML and create visualization
-        function parseAndVisualize(yamlContent) {
+        // Parse and add file to the project
+        function parseAndAddFile(fileName, content) {
             try {
-                resources = [];
-                connections = [];
+                const fileResources = [];
                 
-                // Parse YAML documents (support multi-document YAML)
-                const documents = jsyaml.loadAll(yamlContent);
+                // Parse YAML documents
+                const documents = jsyaml.loadAll(content);
                 
                 documents.forEach(doc => {
                     if (doc && doc.kind) {
-                        resources.push(extractResourceInfo(doc));
+                        const resource = extractResourceInfo(doc);
+                        resource.fileName = fileName;
+                        fileResources.push(resource);
                     }
                 });
 
-                if (resources.length === 0) {
-                    showError('No valid Kubernetes resources found in the YAML');
-                    return;
+                if (fileResources.length > 0) {
+                    // Store file data
+                    loadedFiles.set(fileName, {
+                        content: content,
+                        resources: fileResources
+                    });
+                    
+                    // Update UI
+                    updateFilesList();
+                    updateProjectVisualization();
                 }
-
-                // Find connections between resources
-                findConnections();
-                
-                // Visualize the architecture
-                visualizeArchitecture();
-                
-                // Clear any previous errors
-                document.getElementById('errorContainer').innerHTML = '';
                 
             } catch (error) {
-                showError('Error parsing YAML: ' + error.message);
+                showError(`Error parsing ${fileName}: ${error.message}`);
             }
+        }
+
+        // Update files list UI
+        function updateFilesList() {
+            const filesListContainer = document.getElementById('filesListContainer');
+            const filesList = document.getElementById('filesList');
+            const filesCount = document.getElementById('filesCount');
+            
+            filesListContainer.style.display = loadedFiles.size > 0 ? 'block' : 'none';
+            filesCount.textContent = `(${loadedFiles.size})`;
+            
+            filesList.innerHTML = '';
+            
+            loadedFiles.forEach((fileData, fileName) => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                
+                const resourceCount = fileData.resources.length;
+                const resourceTypes = [...new Set(fileData.resources.map(r => r.kind))].join(', ');
+                
+                fileItem.innerHTML = `
+                    <div class="file-name">
+                        📄 ${fileName}
+                    </div>
+                    <div class="file-resources">
+                        ${resourceCount} resource${resourceCount > 1 ? 's' : ''} (${resourceTypes})
+                    </div>
+                    <button class="remove-file" onclick="removeFile('${fileName}')">Remove</button>
+                `;
+                
+                filesList.appendChild(fileItem);
+            });
+        }
+
+        // Update project visualization
+        function updateProjectVisualization() {
+            // Collect all resources from all files
+            resources = [];
+            loadedFiles.forEach(fileData => {
+                resources.push(...fileData.resources);
+            });
+
+            if (resources.length === 0) {
+                visualizationContainer.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🎯</div>
+                        <div class="empty-state-text">Drop YAML manifests to visualize</div>
+                    </div>
+                `;
+                document.getElementById('legend').style.display = 'none';
+                document.getElementById('projectStats').style.display = 'none';
+                return;
+            }
+
+            // Find connections between resources
+            connections = [];
+            findConnections();
+            
+            // Visualize the architecture
+            visualizeArchitecture();
+            
+            // Update statistics
+            updateProjectStats();
+            
+            // Clear any previous errors
+            document.getElementById('errorContainer').innerHTML = '';
+        }
+
+        // Remove a file from the project
+        function removeFile(fileName) {
+            loadedFiles.delete(fileName);
+            updateFilesList();
+            updateProjectVisualization();
+        }
+
+        // Update project statistics
+        function updateProjectStats() {
+            const projectStats = document.getElementById('projectStats');
+            const statsGrid = document.getElementById('statsGrid');
+            
+            projectStats.style.display = resources.length > 0 ? 'block' : 'none';
+            
+            // Count resources by type
+            const resourceCounts = {};
+            resources.forEach(resource => {
+                resourceCounts[resource.kind] = (resourceCounts[resource.kind] || 0) + 1;
+            });
+            
+            // Count namespaces
+            const namespaces = new Set(resources.map(r => r.namespace));
+            
+            statsGrid.innerHTML = `
+                <div class="stat-item">
+                    <div class="stat-value">${resources.length}</div>
+                    <div class="stat-label">Total Resources</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${loadedFiles.size}</div>
+                    <div class="stat-label">Files</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${namespaces.size}</div>
+                    <div class="stat-label">Namespaces</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${connections.length}</div>
+                    <div class="stat-label">Connections</div>
+                </div>
+            `;
+            
+            // Add resource type counts
+            Object.entries(resourceCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 4)
+                .forEach(([kind, count]) => {
+                    const statItem = document.createElement('div');
+                    statItem.className = 'stat-item';
+                    statItem.innerHTML = `
+                        <div class="stat-value">${count}</div>
+                        <div class="stat-label">${kind}s</div>
+                    `;
+                    statsGrid.appendChild(statItem);
+                });
         }
 
         // Extract resource information
@@ -1122,24 +1347,22 @@
         function clearVisualization() {
             resources = [];
             connections = [];
+            loadedFiles.clear();
             visualizationContainer.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-state-icon">🎯</div>
-                    <div class="empty-state-text">Drop a YAML manifest to visualize</div>
+                    <div class="empty-state-text">Drop YAML manifests to visualize</div>
                 </div>
             `;
-            document.getElementById('yamlPreview').style.display = 'none';
+            document.getElementById('filesListContainer').style.display = 'none';
+            document.getElementById('projectStats').style.display = 'none';
             document.getElementById('legend').style.display = 'none';
             document.getElementById('errorContainer').innerHTML = '';
         }
+        
+        // Make removeFile function global
+        window.removeFile = removeFile;
 
-        // Show YAML preview
-        function showYamlPreview(content) {
-            document.getElementById('yamlPreview').style.display = 'block';
-            document.getElementById('yamlContent').textContent = content.length > 1000 
-                ? content.substring(0, 1000) + '...\n(truncated)' 
-                : content;
-        }
 
         // Show error message
         function showError(message) {
@@ -1153,7 +1376,11 @@
 
         // Example manifests for testing
         function loadExample() {
-            const exampleYaml = `apiVersion: apps/v1
+            // Clear existing data
+            loadedFiles.clear();
+            
+            // Example deployment
+            const deploymentYaml = `apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: nginx-deployment
@@ -1186,9 +1413,10 @@ spec:
       volumes:
       - name: config
         configMap:
-          name: nginx-config
----
-apiVersion: v1
+          name: nginx-config`;
+
+            // Example service
+            const serviceYaml = `apiVersion: v1
 kind: Service
 metadata:
   name: nginx-service
@@ -1199,9 +1427,10 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 80
-  type: LoadBalancer
----
-apiVersion: v1
+  type: LoadBalancer`;
+
+            // Example configmap
+            const configmapYaml = `apiVersion: v1
 kind: ConfigMap
 metadata:
   name: nginx-config
@@ -1215,9 +1444,10 @@ data:
             root /usr/share/nginx/html;
             index index.html;
         }
-    }
----
-apiVersion: networking.k8s.io/v1
+    }`;
+
+            // Example ingress
+            const ingressYaml = `apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: nginx-ingress
@@ -1235,9 +1465,60 @@ spec:
             name: nginx-service
             port:
               number: 80`;
+
+            // StatefulSet example
+            const statefulsetYaml = `apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-db
+spec:
+  serviceName: postgres-service
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:13
+        env:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: password
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-storage
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi`;
+
+            // Secret example
+            const secretYaml = `apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+type: Opaque
+data:
+  password: cG9zdGdyZXM=`;
               
-            parseAndVisualize(exampleYaml);
-            showYamlPreview(exampleYaml);
+            // Parse each file separately
+            parseAndAddFile('deployment.yaml', deploymentYaml);
+            parseAndAddFile('service.yaml', serviceYaml);
+            parseAndAddFile('configmap.yaml', configmapYaml);
+            parseAndAddFile('ingress.yaml', ingressYaml);
+            parseAndAddFile('statefulset.yaml', statefulsetYaml);
+            parseAndAddFile('secret.yaml', secretYaml);
         }
 
         // Add example button to controls
