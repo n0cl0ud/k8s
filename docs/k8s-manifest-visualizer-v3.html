@@ -1,0 +1,1538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K8s Mind Map Visualizer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .main-container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 300px;
+            background: #161b22;
+            border-right: 1px solid #30363d;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            background: #21262d;
+            border-bottom: 1px solid #30363d;
+        }
+        
+        .sidebar-header h1 {
+            font-size: 1.2em;
+            color: #58a6ff;
+            margin-bottom: 8px;
+        }
+        
+        .sidebar-header p {
+            font-size: 0.85em;
+            color: #8b949e;
+        }
+        
+        .drop-zone {
+            margin: 16px;
+            padding: 32px 16px;
+            border: 2px dashed #30363d;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: rgba(88, 166, 255, 0.05);
+        }
+        
+        .drop-zone:hover {
+            border-color: #58a6ff;
+            background: rgba(88, 166, 255, 0.1);
+        }
+        
+        .drop-zone.drag-over {
+            border-color: #39d353;
+            background: rgba(57, 211, 83, 0.1);
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .files-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+        
+        .file-item {
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .file-item:hover {
+            background: #30363d;
+        }
+        
+        .file-name {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            font-size: 0.9em;
+        }
+        
+        .file-count {
+            font-size: 0.8em;
+            color: #8b949e;
+            margin-right: 12px;
+        }
+        
+        .remove-btn {
+            background: #da3633;
+            border: none;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75em;
+        }
+        
+        .remove-btn:hover {
+            background: #f85149;
+        }
+        
+        /* Canvas */
+        .canvas-area {
+            flex: 1;
+            position: relative;
+            background: #0d1117;
+            background-image: 
+                radial-gradient(circle at 25% 25%, rgba(88, 166, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 75% 75%, rgba(57, 211, 83, 0.1) 0%, transparent 50%);
+        }
+        
+        .toolbar {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            display: flex;
+            gap: 8px;
+            z-index: 1000;
+        }
+        
+        .toolbar-btn {
+            background: rgba(22, 27, 34, 0.8);
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s;
+            backdrop-filter: blur(10px);
+        }
+        
+        .toolbar-btn:hover {
+            background: rgba(88, 166, 255, 0.2);
+            border-color: #58a6ff;
+        }
+        
+        .toolbar-btn.active {
+            background: rgba(88, 166, 255, 0.3);
+            border-color: #58a6ff;
+            color: #58a6ff;
+        }
+        
+        /* Canvas viewport */
+        #canvas {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: auto;
+            cursor: grab;
+        }
+        
+        #canvas.dragging {
+            cursor: grabbing;
+        }
+        
+        .viewport {
+            position: relative;
+            width: 3000px;
+            height: 3000px;
+            transform-origin: 0 0;
+        }
+        
+        /* Mind Map Nodes */
+        .mind-node {
+            position: absolute;
+            background: linear-gradient(135deg, #21262d 0%, #161b22 100%);
+            border: 2px solid #30363d;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            user-select: none;
+        }
+        
+        .mind-node:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+            border-color: #58a6ff;
+            z-index: 50;
+        }
+        
+        .mind-node.expanded {
+            border-color: #39d353;
+            box-shadow: 0 0 0 2px rgba(57, 211, 83, 0.3);
+        }
+        
+        .mind-node.dragging {
+            z-index: 100;
+            transform: scale(1.05);
+            cursor: grabbing;
+        }
+        
+        /* Node types */
+        .mind-node.deployment { border-left: 4px solid #1f6feb; }
+        .mind-node.service { border-left: 4px solid #238636; }
+        .mind-node.ingress { border-left: 4px solid #8957e5; }
+        .mind-node.configmap { border-left: 4px solid #fb8500; }
+        .mind-node.secret { border-left: 4px solid #da3633; }
+        .mind-node.statefulset { border-left: 4px solid #0969da; }
+        .mind-node.persistentvolumeclaim { border-left: 4px solid #2da44e; }
+        
+        /* Node sizes */
+        .mind-node.size-compact {
+            padding: 12px 16px;
+            width: 200px;
+        }
+        
+        .mind-node.size-normal {
+            padding: 16px 20px;
+            width: 260px;
+        }
+        
+        .mind-node.size-expanded {
+            padding: 20px 24px;
+            width: 320px;
+            min-height: 200px;
+        }
+        
+        .node-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        
+        .node-icon {
+            font-size: 1.8em;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(88, 166, 255, 0.1);
+            border-radius: 8px;
+            flex-shrink: 0;
+        }
+        
+        .node-content {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .node-type {
+            font-size: 0.7em;
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+        
+        .node-name {
+            font-size: 1em;
+            font-weight: 600;
+            color: #c9d1d9;
+            line-height: 1.2;
+            word-break: break-word;
+        }
+        
+        .expand-indicator {
+            width: 20px;
+            height: 20px;
+            background: #30363d;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8em;
+            color: #8b949e;
+            flex-shrink: 0;
+            transition: all 0.2s;
+        }
+        
+        .expand-indicator:hover {
+            background: #58a6ff;
+            color: white;
+        }
+        
+        .expand-indicator.expanded {
+            background: #39d353;
+            color: white;
+            transform: rotate(90deg);
+        }
+        
+        .node-details {
+            margin-top: 12px;
+            font-size: 0.85em;
+            color: #8b949e;
+            line-height: 1.4;
+            opacity: 0;
+            max-height: 0;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .mind-node.expanded .node-details {
+            opacity: 1;
+            max-height: 300px;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+        }
+        
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-label {
+            color: #8b949e;
+            font-size: 0.8em;
+        }
+        
+        .detail-value {
+            color: #58a6ff;
+            font-weight: 500;
+            font-size: 0.8em;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .child-nodes {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s ease;
+        }
+        
+        .mind-node.expanded .child-nodes {
+            opacity: 1;
+            pointer-events: all;
+        }
+        
+        /* Connection lines */
+        .connection-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .connection-line {
+            stroke: #30363d;
+            stroke-width: 2;
+            fill: none;
+            opacity: 0.6;
+            transition: all 0.3s ease;
+        }
+        
+        .connection-line.active {
+            stroke: #58a6ff;
+            stroke-width: 3;
+            opacity: 1;
+            stroke-dasharray: 5, 5;
+            animation: dash 20s linear infinite;
+        }
+        
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -100;
+            }
+        }
+        
+        .connection-line.service { stroke: #238636; }
+        .connection-line.config { stroke: #fb8500; }
+        .connection-line.volume { stroke: #8957e5; }
+        
+        /* Minimap */
+        .minimap {
+            position: absolute;
+            bottom: 16px;
+            right: 16px;
+            width: 200px;
+            height: 150px;
+            background: rgba(22, 27, 34, 0.9);
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            backdrop-filter: blur(10px);
+            overflow: hidden;
+        }
+        
+        .minimap-viewport {
+            position: absolute;
+            border: 2px solid #58a6ff;
+            background: rgba(88, 166, 255, 0.1);
+            cursor: move;
+        }
+        
+        /* Stats panel */
+        .stats-panel {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(22, 27, 34, 0.9);
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 16px;
+            backdrop-filter: blur(10px);
+            min-width: 180px;
+        }
+        
+        .stats-title {
+            font-size: 0.9em;
+            font-weight: 600;
+            color: #58a6ff;
+            margin-bottom: 12px;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            font-size: 0.8em;
+        }
+        
+        .stat-label {
+            color: #8b949e;
+        }
+        
+        .stat-value {
+            color: #c9d1d9;
+            font-weight: 500;
+        }
+        
+        /* Empty state */
+        .empty-state {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            opacity: 0.6;
+        }
+        
+        .empty-state-icon {
+            font-size: 4em;
+            margin-bottom: 16px;
+        }
+        
+        .empty-state-text {
+            font-size: 1.1em;
+            color: #8b949e;
+        }
+        
+        /* Animations */
+        @keyframes nodeAppear {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        .mind-node {
+            animation: nodeAppear 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        /* Zoom indicator */
+        .zoom-indicator {
+            position: absolute;
+            bottom: 16px;
+            left: 16px;
+            background: rgba(22, 27, 34, 0.9);
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 0.8em;
+            color: #8b949e;
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>🧠 K8s Mind Map</h1>
+                <p>Interactive resource visualization</p>
+            </div>
+            
+            <div class="drop-zone" id="dropZone">
+                <div style="font-size: 2em; margin-bottom: 8px;">📁</div>
+                <div>Drop files or click to browse</div>
+                <div style="font-size: 0.75em; margin-top: 4px; color: #8b949e;">
+                    YAML, YML, TF files
+                </div>
+                <input type="file" id="fileInput" class="file-input" accept=".yaml,.yml,.tf" multiple>
+            </div>
+            
+            <div class="files-list" id="filesList"></div>
+        </div>
+        
+        <!-- Canvas -->
+        <div class="canvas-area">
+            <div class="toolbar">
+                <button class="toolbar-btn active" onclick="setMode('mind')">🧠 Mind Map</button>
+                <button class="toolbar-btn" onclick="setMode('flow')">🌊 Flow</button>
+                <button class="toolbar-btn" onclick="setMode('tree')">🌳 Tree</button>
+                <button class="toolbar-btn" onclick="expandAll()">📂 Expand All</button>
+                <button class="toolbar-btn" onclick="collapseAll()">📁 Collapse All</button>
+                <button class="toolbar-btn" onclick="centerView()">🎯 Center</button>
+                <button class="toolbar-btn" onclick="clearAll()">🗑️ Clear</button>
+                <button class="toolbar-btn" onclick="loadExample()">📝 Example</button>
+            </div>
+            
+            <div id="canvas">
+                <div class="viewport" id="viewport">
+                    <svg class="connection-svg" id="connectionSvg"></svg>
+                    <div class="empty-state" id="emptyState">
+                        <div class="empty-state-icon">🎯</div>
+                        <div class="empty-state-text">Drop files to start mapping</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="stats-panel" id="statsPanel" style="display: none;">
+                <div class="stats-title">📊 Statistics</div>
+                <div id="statsContent"></div>
+            </div>
+            
+            <div class="zoom-indicator" id="zoomIndicator">100%</div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let resources = [];
+        let connections = [];
+        let loadedFiles = new Map();
+        let currentMode = 'mind';
+        let selectedNode = null;
+        let isDragging = false;
+        let dragOffset = { x: 0, y: 0 };
+        let zoomLevel = 1;
+        let panOffset = { x: 0, y: 0 };
+        let expandedNodes = new Set();
+        
+        // Resource icons
+        const icons = {
+            'Deployment': '🚀', 'Service': '🌐', 'ConfigMap': '⚙️', 'Secret': '🔐',
+            'Ingress': '🚪', 'PersistentVolumeClaim': '💾', 'StatefulSet': '🗂️',
+            'DaemonSet': '😈', 'Pod': '📦', 'Job': '⚡', 'CronJob': '⏰',
+            'aws_instance': '🖥️', 'aws_eks_cluster': '☸️', 'aws_rds_instance': '🗄️',
+            'google_compute_instance': '🖥️', 'google_container_cluster': '☸️',
+            'azurerm_virtual_machine': '🖥️', 'azurerm_kubernetes_cluster': '☸️',
+            'default': '📄'
+        };
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            setupDragDrop();
+            setupCanvas();
+            setupKeyboardShortcuts();
+        });
+        
+        function setupDragDrop() {
+            const dropZone = document.getElementById('dropZone');
+            const fileInput = document.getElementById('fileInput');
+            
+            dropZone.addEventListener('click', () => fileInput.click());
+            
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('drag-over');
+            });
+            
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('drag-over');
+            });
+            
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('drag-over');
+                handleFiles(e.dataTransfer.files);
+            });
+            
+            fileInput.addEventListener('change', (e) => {
+                handleFiles(e.target.files);
+            });
+        }
+        
+        function setupCanvas() {
+            const canvas = document.getElementById('canvas');
+            const viewport = document.getElementById('viewport');
+            
+            // Node interaction
+            viewport.addEventListener('mousedown', handleMouseDown);
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+            
+            // Zoom
+            canvas.addEventListener('wheel', handleWheel);
+            
+            // Pan
+            let isPanning = false;
+            let panStart = { x: 0, y: 0 };
+            
+            canvas.addEventListener('mousedown', (e) => {
+                if (e.target === canvas || e.target === viewport) {
+                    isPanning = true;
+                    panStart = { x: e.clientX - panOffset.x, y: e.clientY - panOffset.y };
+                    canvas.style.cursor = 'grabbing';
+                }
+            });
+            
+            document.addEventListener('mousemove', (e) => {
+                if (isPanning) {
+                    panOffset.x = e.clientX - panStart.x;
+                    panOffset.y = e.clientY - panStart.y;
+                    updateViewport();
+                }
+            });
+            
+            document.addEventListener('mouseup', () => {
+                if (isPanning) {
+                    isPanning = false;
+                    canvas.style.cursor = 'grab';
+                }
+            });
+        }
+        
+        function setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey || e.metaKey) {
+                    switch (e.key) {
+                        case '0':
+                            e.preventDefault();
+                            resetZoom();
+                            break;
+                        case '=':
+                        case '+':
+                            e.preventDefault();
+                            zoomIn();
+                            break;
+                        case '-':
+                            e.preventDefault();
+                            zoomOut();
+                            break;
+                    }
+                }
+                
+                switch (e.key) {
+                    case 'Escape':
+                        deselectAll();
+                        break;
+                    case ' ':
+                        e.preventDefault();
+                        centerView();
+                        break;
+                }
+            });
+        }
+        
+        function handleFiles(files) {
+            Array.from(files).forEach(file => {
+                if (file.name.match(/\.(yaml|yml|tf)$/i)) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => processFile(file.name, e.target.result);
+                    reader.readAsText(file);
+                }
+            });
+        }
+        
+        function processFile(fileName, content) {
+            try {
+                const fileResources = [];
+                
+                if (fileName.endsWith('.tf')) {
+                    fileResources.push(...parseTerraform(content));
+                } else {
+                    const docs = jsyaml.loadAll(content);
+                    docs.forEach(doc => {
+                        if (doc && doc.kind) {
+                            fileResources.push(parseKubernetes(doc));
+                        }
+                    });
+                }
+                
+                if (fileResources.length > 0) {
+                    loadedFiles.set(fileName, { content, resources: fileResources });
+                    updateFilesList();
+                    updateVisualization();
+                }
+            } catch (error) {
+                console.error('Error processing file:', error);
+            }
+        }
+        
+        function parseKubernetes(doc) {
+            const resource = {
+                id: `${doc.kind}-${doc.metadata?.name || Math.random()}`,
+                kind: doc.kind,
+                name: doc.metadata?.name || 'unnamed',
+                namespace: doc.metadata?.namespace || 'default',
+                labels: doc.metadata?.labels || {},
+                spec: doc.spec || {},
+                type: 'kubernetes',
+                children: [],
+                parent: null,
+                expanded: false,
+                x: 0,
+                y: 0
+            };
+            
+            // Extract relationships and children
+            switch (doc.kind) {
+                case 'Deployment':
+                case 'StatefulSet':
+                    resource.replicas = doc.spec?.replicas || 1;
+                    resource.containers = doc.spec?.template?.spec?.containers?.map(c => ({
+                        id: `container-${c.name}`,
+                        name: c.name,
+                        image: c.image,
+                        ports: c.ports || [],
+                        type: 'container',
+                        parent: resource.id
+                    })) || [];
+                    resource.children = resource.containers;
+                    break;
+                    
+                case 'Service':
+                    resource.selector = doc.spec?.selector || {};
+                    resource.ports = doc.spec?.ports || [];
+                    resource.serviceType = doc.spec?.type || 'ClusterIP';
+                    break;
+                    
+                case 'ConfigMap':
+                case 'Secret':
+                    resource.dataKeys = Object.keys(doc.data || {});
+                    resource.children = resource.dataKeys.map(key => ({
+                        id: `${resource.id}-${key}`,
+                        name: key,
+                        type: 'data-key',
+                        parent: resource.id
+                    }));
+                    break;
+                    
+                case 'Ingress':
+                    resource.rules = doc.spec?.rules || [];
+                    resource.children = resource.rules.map((rule, i) => ({
+                        id: `${resource.id}-rule-${i}`,
+                        name: rule.host || `Rule ${i + 1}`,
+                        paths: rule.http?.paths || [],
+                        type: 'ingress-rule',
+                        parent: resource.id
+                    }));
+                    break;
+            }
+            
+            return resource;
+        }
+        
+        function parseTerraform(content) {
+            const resources = [];
+            const resourceRegex = /resource\s+"([^"]+)"\s+"([^"]+)"\s*{/g;
+            let match;
+            
+            while ((match = resourceRegex.exec(content)) !== null) {
+                resources.push({
+                    id: `${match[1]}-${match[2]}`,
+                    kind: match[1],
+                    name: match[2],
+                    type: 'terraform',
+                    provider: match[1].split('_')[0],
+                    children: [],
+                    parent: null,
+                    expanded: false,
+                    x: 0,
+                    y: 0
+                });
+            }
+            
+            return resources;
+        }
+        
+        function updateFilesList() {
+            const filesList = document.getElementById('filesList');
+            filesList.innerHTML = '';
+            
+            loadedFiles.forEach((fileData, fileName) => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `
+                    <div class="file-name">
+                        <span>📄</span>
+                        <span>${fileName}</span>
+                    </div>
+                    <div class="file-count">${fileData.resources.length}</div>
+                    <button class="remove-btn" onclick="removeFile('${fileName}')">×</button>
+                `;
+                filesList.appendChild(fileItem);
+            });
+        }
+        
+        function updateVisualization() {
+            // Collect all resources
+            resources = [];
+            loadedFiles.forEach(fileData => {
+                resources.push(...fileData.resources);
+            });
+            
+            if (resources.length === 0) {
+                document.getElementById('emptyState').style.display = 'block';
+                document.getElementById('statsPanel').style.display = 'none';
+                return;
+            }
+            
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('statsPanel').style.display = 'block';
+            
+            findConnections();
+            applyLayout();
+            render();
+            updateStats();
+        }
+        
+        function findConnections() {
+            connections = [];
+            
+            resources.forEach(resource => {
+                if (resource.kind === 'Service' && resource.selector) {
+                    resources.forEach(target => {
+                        if (['Deployment', 'StatefulSet'].includes(target.kind)) {
+                            if (matchLabels(resource.selector, target.labels)) {
+                                connections.push({
+                                    from: resource.id,
+                                    to: target.id,
+                                    type: 'service'
+                                });
+                            }
+                        }
+                    });
+                }
+                
+                if (resource.kind === 'Ingress') {
+                    resource.rules?.forEach(rule => {
+                        rule.paths?.forEach(path => {
+                            const serviceName = path.backend?.service?.name;
+                            if (serviceName) {
+                                const service = resources.find(r => r.kind === 'Service' && r.name === serviceName);
+                                if (service) {
+                                    connections.push({
+                                        from: resource.id,
+                                        to: service.id,
+                                        type: 'ingress'
+                                    });
+                                }
+                            }
+                        });
+                    });
+                }
+            });
+        }
+        
+        function matchLabels(selector, labels) {
+            return Object.entries(selector).every(([key, value]) => labels[key] === value);
+        }
+        
+        function applyLayout() {
+            switch (currentMode) {
+                case 'mind':
+                    applyMindMapLayout();
+                    break;
+                case 'flow':
+                    applyFlowLayout();
+                    break;
+                case 'tree':
+                    applyTreeLayout();
+                    break;
+            }
+        }
+        
+        function applyMindMapLayout() {
+            const center = { x: 800, y: 600 };
+            const layers = {
+                ingress: [],
+                service: [],
+                workload: [],
+                config: [],
+                storage: []
+            };
+            
+            // Categorize resources
+            resources.forEach(resource => {
+                if (resource.kind === 'Ingress') layers.ingress.push(resource);
+                else if (resource.kind === 'Service') layers.service.push(resource);
+                else if (['Deployment', 'StatefulSet', 'DaemonSet'].includes(resource.kind)) layers.workload.push(resource);
+                else if (['ConfigMap', 'Secret'].includes(resource.kind)) layers.config.push(resource);
+                else if (resource.kind === 'PersistentVolumeClaim') layers.storage.push(resource);
+            });
+            
+            // Position in concentric circles
+            let radius = 200;
+            const radiusIncrement = 150;
+            
+            Object.entries(layers).forEach(([layerName, layerResources]) => {
+                if (layerResources.length > 0) {
+                    const angleStep = (2 * Math.PI) / layerResources.length;
+                    
+                    layerResources.forEach((resource, index) => {
+                        const angle = index * angleStep - Math.PI / 2;
+                        resource.x = center.x + radius * Math.cos(angle);
+                        resource.y = center.y + radius * Math.sin(angle);
+                        
+                        // Position children in a smaller arc
+                        if (resource.children && resource.children.length > 0) {
+                            const childRadius = 80;
+                            const childAngleStep = Math.PI / Math.max(resource.children.length, 1);
+                            const startAngle = angle - (childAngleStep * (resource.children.length - 1)) / 2;
+                            
+                            resource.children.forEach((child, childIndex) => {
+                                const childAngle = startAngle + (childIndex * childAngleStep);
+                                child.x = resource.x + childRadius * Math.cos(childAngle);
+                                child.y = resource.y + childRadius * Math.sin(childAngle);
+                            });
+                        }
+                    });
+                    
+                    radius += radiusIncrement;
+                }
+            });
+        }
+        
+        function applyFlowLayout() {
+            // Left to right flow
+            const startX = 100;
+            const startY = 100;
+            const columnWidth = 300;
+            const nodeHeight = 200;
+            
+            const columns = [];
+            const processed = new Set();
+            
+            // Find roots
+            const roots = resources.filter(r => !connections.some(c => c.to === r.id));
+            
+            let currentColumn = [...roots];
+            while (currentColumn.length > 0) {
+                columns.push(currentColumn);
+                currentColumn.forEach(r => processed.add(r.id));
+                
+                const nextColumn = [];
+                currentColumn.forEach(resource => {
+                    connections
+                        .filter(c => c.from === resource.id && !processed.has(c.to))
+                        .forEach(c => {
+                            const target = resources.find(r => r.id === c.to);
+                            if (target && !nextColumn.includes(target)) {
+                                nextColumn.push(target);
+                            }
+                        });
+                });
+                
+                currentColumn = nextColumn;
+            }
+            
+            // Add unprocessed
+            const unprocessed = resources.filter(r => !processed.has(r.id));
+            if (unprocessed.length > 0) {
+                columns.push(unprocessed);
+            }
+            
+            // Position columns
+            columns.forEach((column, colIndex) => {
+                const x = startX + (colIndex * columnWidth);
+                
+                column.forEach((resource, rowIndex) => {
+                    resource.x = x;
+                    resource.y = startY + (rowIndex * nodeHeight);
+                });
+            });
+        }
+        
+        function applyTreeLayout() {
+            // Hierarchical tree
+            const rootX = 400;
+            const startY = 100;
+            const levelHeight = 250;
+            const nodeSpacing = 280;
+            
+            const levels = [];
+            const processed = new Set();
+            
+            // Build levels
+            const roots = resources.filter(r => !connections.some(c => c.to === r.id));
+            let currentLevel = [...roots];
+            
+            while (currentLevel.length > 0) {
+                levels.push(currentLevel);
+                currentLevel.forEach(r => processed.add(r.id));
+                
+                const nextLevel = [];
+                currentLevel.forEach(resource => {
+                    connections
+                        .filter(c => c.from === resource.id && !processed.has(c.to))
+                        .forEach(c => {
+                            const target = resources.find(r => r.id === c.to);
+                            if (target && !nextLevel.includes(target)) {
+                                nextLevel.push(target);
+                            }
+                        });
+                });
+                
+                currentLevel = nextLevel;
+            }
+            
+            // Position levels
+            levels.forEach((level, levelIndex) => {
+                const y = startY + (levelIndex * levelHeight);
+                const totalWidth = level.length * nodeSpacing;
+                const startX = rootX - totalWidth / 2;
+                
+                level.forEach((resource, index) => {
+                    resource.x = startX + (index * nodeSpacing);
+                    resource.y = y;
+                });
+            });
+        }
+        
+        function render() {
+            const viewport = document.getElementById('viewport');
+            
+            // Clear existing nodes
+            const existingNodes = viewport.querySelectorAll('.mind-node');
+            existingNodes.forEach(node => node.remove());
+            
+            // Render nodes
+            resources.forEach(resource => {
+                const node = createMindNode(resource);
+                viewport.appendChild(node);
+            });
+            
+            // Render connections
+            renderConnections();
+        }
+        
+        function createMindNode(resource) {
+            const node = document.createElement('div');
+            node.className = `mind-node size-${resource.expanded ? 'expanded' : 'normal'} ${resource.kind.toLowerCase()}`;
+            node.id = resource.id;
+            node.style.left = `${resource.x}px`;
+            node.style.top = `${resource.y}px`;
+            
+            if (resource.expanded) {
+                node.classList.add('expanded');
+            }
+            
+            const icon = icons[resource.kind] || icons.default;
+            const hasChildren = resource.children && resource.children.length > 0;
+            
+            let details = '';
+            if (resource.replicas !== undefined) {
+                details += `<div class="detail-row">
+                    <span class="detail-label">Replicas</span>
+                    <span class="detail-value">${resource.replicas}</span>
+                </div>`;
+            }
+            if (resource.ports && resource.ports.length > 0) {
+                details += `<div class="detail-row">
+                    <span class="detail-label">Ports</span>
+                    <span class="detail-value">${resource.ports.map(p => p.port || p.containerPort).join(', ')}</span>
+                </div>`;
+            }
+            if (resource.serviceType) {
+                details += `<div class="detail-row">
+                    <span class="detail-label">Type</span>
+                    <span class="detail-value">${resource.serviceType}</span>
+                </div>`;
+            }
+            if (resource.dataKeys && resource.dataKeys.length > 0) {
+                details += `<div class="detail-row">
+                    <span class="detail-label">Keys</span>
+                    <span class="detail-value">${resource.dataKeys.length}</span>
+                </div>`;
+            }
+            if (resource.namespace && resource.namespace !== 'default') {
+                details += `<div class="detail-row">
+                    <span class="detail-label">Namespace</span>
+                    <span class="detail-value">${resource.namespace}</span>
+                </div>`;
+            }
+            
+            node.innerHTML = `
+                <div class="node-header">
+                    <div class="node-icon">${icon}</div>
+                    <div class="node-content">
+                        <div class="node-type">${resource.kind}</div>
+                        <div class="node-name">${resource.name}</div>
+                    </div>
+                    ${hasChildren ? `<div class="expand-indicator ${resource.expanded ? 'expanded' : ''}" onclick="toggleExpand('${resource.id}')">${resource.expanded ? '−' : '+'}</div>` : ''}
+                </div>
+                ${details ? `<div class="node-details">${details}</div>` : ''}
+            `;
+            
+            // Add click handler for expansion
+            if (hasChildren) {
+                node.addEventListener('click', (e) => {
+                    if (!e.target.closest('.expand-indicator')) {
+                        toggleExpand(resource.id);
+                    }
+                });
+            }
+            
+            return node;
+        }
+        
+        function renderConnections() {
+            const svg = document.getElementById('connectionSvg');
+            svg.innerHTML = '';
+            
+            connections.forEach(connection => {
+                const fromNode = document.getElementById(connection.from);
+                const toNode = document.getElementById(connection.to);
+                
+                if (fromNode && toNode) {
+                    const fromRect = fromNode.getBoundingClientRect();
+                    const toRect = toNode.getBoundingClientRect();
+                    const canvasRect = svg.getBoundingClientRect();
+                    
+                    const fromX = fromRect.left + fromRect.width / 2 - canvasRect.left;
+                    const fromY = fromRect.top + fromRect.height / 2 - canvasRect.top;
+                    const toX = toRect.left + toRect.width / 2 - canvasRect.left;
+                    const toY = toRect.top + toRect.height / 2 - canvasRect.top;
+                    
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    
+                    // Curved connection
+                    const midX = (fromX + toX) / 2;
+                    const midY = (fromY + toY) / 2;
+                    const controlOffset = 50;
+                    
+                    path.setAttribute('d', `M ${fromX} ${fromY} Q ${midX} ${midY - controlOffset} ${toX} ${toY}`);
+                    path.setAttribute('class', `connection-line ${connection.type}`);
+                    
+                    svg.appendChild(path);
+                }
+            });
+        }
+        
+        function updateStats() {
+            const statsContent = document.getElementById('statsContent');
+            
+            const stats = {
+                'Resources': resources.length,
+                'Expanded': expandedNodes.size,
+                'Connections': connections.length,
+                'Namespaces': [...new Set(resources.filter(r => r.namespace).map(r => r.namespace))].length,
+                'Files': loadedFiles.size
+            };
+            
+            statsContent.innerHTML = Object.entries(stats)
+                .map(([label, value]) => `
+                    <div class="stat-item">
+                        <span class="stat-label">${label}</span>
+                        <span class="stat-value">${value}</span>
+                    </div>
+                `).join('');
+        }
+        
+        // Mouse event handlers
+        function handleMouseDown(e) {
+            const node = e.target.closest('.mind-node');
+            if (node && !e.target.closest('.expand-indicator')) {
+                selectedNode = node;
+                isDragging = true;
+                
+                const rect = node.getBoundingClientRect();
+                const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+                
+                dragOffset.x = e.clientX - rect.left;
+                dragOffset.y = e.clientY - rect.top;
+                
+                node.classList.add('dragging');
+                e.preventDefault();
+            }
+        }
+        
+        function handleMouseMove(e) {
+            if (isDragging && selectedNode) {
+                const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+                const viewportRect = document.getElementById('viewport').getBoundingClientRect();
+                
+                const x = (e.clientX - viewportRect.left - dragOffset.x) / zoomLevel;
+                const y = (e.clientY - viewportRect.top - dragOffset.y) / zoomLevel;
+                
+                selectedNode.style.left = `${x}px`;
+                selectedNode.style.top = `${y}px`;
+                
+                // Update resource position
+                const resource = resources.find(r => r.id === selectedNode.id);
+                if (resource) {
+                    resource.x = x;
+                    resource.y = y;
+                }
+                
+                // Update connections in real-time
+                renderConnections();
+            }
+        }
+        
+        function handleMouseUp(e) {
+            if (isDragging && selectedNode) {
+                selectedNode.classList.remove('dragging');
+                isDragging = false;
+                selectedNode = null;
+            }
+        }
+        
+        // Zoom and pan
+        function handleWheel(e) {
+            e.preventDefault();
+            
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            const newZoom = Math.max(0.1, Math.min(3, zoomLevel * delta));
+            
+            if (newZoom !== zoomLevel) {
+                zoomLevel = newZoom;
+                updateViewport();
+                updateZoomIndicator();
+            }
+        }
+        
+        function updateViewport() {
+            const viewport = document.getElementById('viewport');
+            viewport.style.transform = `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel})`;
+        }
+        
+        function updateZoomIndicator() {
+            document.getElementById('zoomIndicator').textContent = `${Math.round(zoomLevel * 100)}%`;
+        }
+        
+        // Control functions
+        window.setMode = function(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.toolbar-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            if (resources.length > 0) {
+                applyLayout();
+                render();
+            }
+        };
+        
+        window.toggleExpand = function(resourceId) {
+            const resource = resources.find(r => r.id === resourceId);
+            const node = document.getElementById(resourceId);
+            
+            if (resource && node) {
+                resource.expanded = !resource.expanded;
+                
+                if (resource.expanded) {
+                    expandedNodes.add(resourceId);
+                    node.classList.add('expanded');
+                } else {
+                    expandedNodes.delete(resourceId);
+                    node.classList.remove('expanded');
+                }
+                
+                // Re-render the node
+                const newNode = createMindNode(resource);
+                node.parentNode.replaceChild(newNode, node);
+                
+                updateStats();
+            }
+        };
+        
+        window.expandAll = function() {
+            resources.forEach(resource => {
+                if (resource.children && resource.children.length > 0) {
+                    resource.expanded = true;
+                    expandedNodes.add(resource.id);
+                }
+            });
+            render();
+            updateStats();
+        };
+        
+        window.collapseAll = function() {
+            resources.forEach(resource => {
+                resource.expanded = false;
+            });
+            expandedNodes.clear();
+            render();
+            updateStats();
+        };
+        
+        window.centerView = function() {
+            if (resources.length > 0) {
+                const bounds = resources.reduce((acc, r) => ({
+                    minX: Math.min(acc.minX, r.x),
+                    maxX: Math.max(acc.maxX, r.x),
+                    minY: Math.min(acc.minY, r.y),
+                    maxY: Math.max(acc.maxY, r.y)
+                }), { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
+                
+                const centerX = (bounds.minX + bounds.maxX) / 2;
+                const centerY = (bounds.minY + bounds.maxY) / 2;
+                
+                const canvas = document.getElementById('canvas');
+                const canvasRect = canvas.getBoundingClientRect();
+                
+                panOffset.x = canvasRect.width / 2 - centerX * zoomLevel;
+                panOffset.y = canvasRect.height / 2 - centerY * zoomLevel;
+                
+                updateViewport();
+            }
+        };
+        
+        window.clearAll = function() {
+            resources = [];
+            connections = [];
+            loadedFiles.clear();
+            expandedNodes.clear();
+            updateFilesList();
+            updateVisualization();
+        };
+        
+        window.removeFile = function(fileName) {
+            loadedFiles.delete(fileName);
+            updateFilesList();
+            updateVisualization();
+        };
+        
+        function deselectAll() {
+            if (selectedNode) {
+                selectedNode.classList.remove('selected');
+                selectedNode = null;
+            }
+        }
+        
+        function zoomIn() {
+            zoomLevel = Math.min(zoomLevel * 1.2, 3);
+            updateViewport();
+            updateZoomIndicator();
+        }
+        
+        function zoomOut() {
+            zoomLevel = Math.max(zoomLevel / 1.2, 0.1);
+            updateViewport();
+            updateZoomIndicator();
+        }
+        
+        function resetZoom() {
+            zoomLevel = 1;
+            panOffset = { x: 0, y: 0 };
+            updateViewport();
+            updateZoomIndicator();
+        }
+        
+        // Load example
+        window.loadExample = function() {
+            const exampleYaml = `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-frontend
+  labels:
+    app: web
+    tier: frontend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: web
+      tier: frontend
+  template:
+    metadata:
+      labels:
+        app: web
+        tier: frontend
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.20
+        ports:
+        - containerPort: 80
+        env:
+        - name: CONFIG_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: web-config
+              key: config.path
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/config
+      volumes:
+      - name: config-volume
+        configMap:
+          name: web-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-service
+spec:
+  selector:
+    app: web
+    tier: frontend
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+  type: LoadBalancer
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: myapp.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: web-service
+            port:
+              number: 80
+  - host: api.example.com
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: api-service
+            port:
+              number: 8080
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-config
+data:
+  config.path: "/app/config"
+  nginx.conf: |
+    server {
+        listen 80;
+        location / {
+            root /usr/share/nginx/html;
+            index index.html;
+        }
+    }
+  app.properties: |
+    debug=false
+    environment=production
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: web-secrets
+type: Opaque
+data:
+  database-password: cGFzc3dvcmQ=
+  api-key: YWJjZGVmZ2hpams=
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: database
+spec:
+  serviceName: db-service
+  replicas: 1
+  selector:
+    matchLabels:
+      app: database
+  template:
+    metadata:
+      labels:
+        app: database
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:13
+        env:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: web-secrets
+              key: database-password
+        volumeMounts:
+        - name: db-storage
+          mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+  - metadata:
+      name: db-storage
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi`;
+            
+            processFile('example-microservice.yaml', exampleYaml);
+        };
+    </script>
+</body>
+</html>
