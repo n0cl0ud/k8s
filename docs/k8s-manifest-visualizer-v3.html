@@ -27,7 +27,7 @@
         
         /* Sidebar */
         .sidebar {
-            width: 300px;
+            width: 420px;
             background: #161b22;
             border-right: 1px solid #30363d;
             display: flex;
@@ -35,15 +35,16 @@
         }
         
         .sidebar-header {
-            padding: 20px;
+            padding: 24px;
             background: #21262d;
             border-bottom: 1px solid #30363d;
         }
         
         .sidebar-header h1 {
-            font-size: 1.2em;
+            font-size: 1.4em;
             color: #58a6ff;
-            margin-bottom: 8px;
+            margin-bottom: 12px;
+            font-weight: 700;
         }
         
         .sidebar-header p {
@@ -52,10 +53,10 @@
         }
         
         .drop-zone {
-            margin: 16px;
-            padding: 32px 16px;
+            margin: 20px;
+            padding: 40px 24px;
             border: 2px dashed #30363d;
-            border-radius: 8px;
+            border-radius: 12px;
             text-align: center;
             cursor: pointer;
             transition: all 0.2s;
@@ -76,53 +77,312 @@
             display: none;
         }
         
-        .files-list {
+        .resources-panel {
             flex: 1;
             overflow-y: auto;
-            padding: 16px;
+            padding: 20px;
         }
         
-        .file-item {
+        .resource-section {
+            margin-bottom: 24px;
+            background: rgba(33, 38, 45, 0.6);
+            border-radius: 12px;
+            border: 1px solid #30363d;
+            overflow: hidden;
+        }
+        
+        .section-header {
+            padding: 16px 20px;
+            background: linear-gradient(135deg, #21262d 0%, #30363d 100%);
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .section-header:hover {
+            background: linear-gradient(135deg, #30363d 0%, #21262d 100%);
+        }
+        
+        .section-icon {
+            font-size: 1.8em;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            flex-shrink: 0;
+        }
+        
+        .section-icon.aws {
+            background: linear-gradient(135deg, #ff9900 0%, #ff7700 100%);
+        }
+        
+        .section-icon.gcp {
+            background: linear-gradient(135deg, #4285f4 0%, #1a73e8 100%);
+        }
+        
+        .section-icon.azure {
+            background: linear-gradient(135deg, #0078d4 0%, #005a9e 100%);
+        }
+        
+        .section-icon.kubernetes {
+            background: linear-gradient(135deg, #326ce5 0%, #1a45a1 100%);
+        }
+        
+        .section-icon.database {
+            background: linear-gradient(135deg, #2ea043 0%, #1f7a2e 100%);
+        }
+        
+        .section-icon.storage {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        }
+        
+        .section-title {
+            flex: 1;
+        }
+        
+        .section-name {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #c9d1d9;
+            margin-bottom: 2px;
+        }
+        
+        .section-description {
+            font-size: 0.8em;
+            color: #8b949e;
+        }
+        
+        .section-stats {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.85em;
+        }
+        
+        .stat-badge {
+            background: rgba(88, 166, 255, 0.2);
+            color: #58a6ff;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: 500;
+        }
+        
+        .expand-icon {
+            font-size: 1.2em;
+            color: #8b949e;
+            transition: transform 0.2s;
+        }
+        
+        .section-header.expanded .expand-icon {
+            transform: rotate(90deg);
+        }
+        
+        .section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        
+        .section-header.expanded + .section-content {
+            max-height: 800px;
+        }
+        
+        .resource-group {
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(48, 54, 61, 0.3);
+        }
+        
+        .resource-group:last-child {
+            border-bottom: none;
+        }
+        
+        .group-title {
+            font-size: 0.9em;
+            font-weight: 600;
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .group-icon {
+            font-size: 1.1em;
+        }
+        
+        .resource-item {
             background: #21262d;
             border: 1px solid #30363d;
-            border-radius: 6px;
-            padding: 12px;
+            border-radius: 8px;
+            padding: 14px 16px;
             margin-bottom: 8px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            transition: all 0.2s;
         }
         
-        .file-item:hover {
+        .resource-item:hover {
             background: #30363d;
+            border-color: #58a6ff;
+            transform: translateX(4px);
         }
         
-        .file-name {
+        .resource-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+        
+        .resource-icon {
+            font-size: 1.4em;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(88, 166, 255, 0.1);
+            border-radius: 6px;
+            flex-shrink: 0;
+        }
+        
+        .resource-details {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .resource-name {
+            font-size: 0.9em;
+            font-weight: 600;
+            color: #c9d1d9;
+            margin-bottom: 2px;
+            word-break: break-word;
+        }
+        
+        .resource-type {
+            font-size: 0.75em;
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .resource-namespace {
+            font-size: 0.7em;
+            color: #58a6ff;
+            background: rgba(88, 166, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 8px;
+        }
+        
+        .resource-actions {
+            display: flex;
+            gap: 6px;
+        }
+        
+        .action-btn {
+            background: rgba(139, 148, 158, 0.1);
+            border: 1px solid #30363d;
+            color: #8b949e;
+            padding: 6px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.7em;
+            transition: all 0.2s;
+        }
+        
+        .action-btn:hover {
+            background: rgba(88, 166, 255, 0.2);
+            border-color: #58a6ff;
+            color: #58a6ff;
+        }
+        
+        .action-btn.remove {
+            color: #f85149;
+        }
+        
+        .action-btn.remove:hover {
+            background: rgba(248, 81, 73, 0.2);
+            border-color: #f85149;
+        }
+        
+        .files-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #30363d;
+        }
+        
+        .files-title {
+            font-size: 0.9em;
+            font-weight: 600;
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
             display: flex;
             align-items: center;
             gap: 8px;
+        }
+        
+        .file-item {
+            background: rgba(33, 38, 45, 0.4);
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 10px 14px;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+        
+        .file-item:hover {
+            background: rgba(48, 54, 61, 0.6);
+        }
+        
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
             flex: 1;
-            font-size: 0.9em;
+        }
+        
+        .file-name {
+            font-size: 0.85em;
+            color: #c9d1d9;
         }
         
         .file-count {
-            font-size: 0.8em;
+            font-size: 0.75em;
             color: #8b949e;
-            margin-right: 12px;
+            background: rgba(139, 148, 158, 0.1);
+            padding: 2px 6px;
+            border-radius: 10px;
         }
         
-        .remove-btn {
-            background: #da3633;
+        .remove-file-btn {
+            background: transparent;
             border: none;
-            color: white;
-            padding: 4px 8px;
+            color: #8b949e;
+            padding: 4px;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 0.75em;
+            font-size: 0.9em;
+            transition: all 0.2s;
         }
         
-        .remove-btn:hover {
-            background: #f85149;
+        .remove-file-btn:hover {
+            background: rgba(248, 81, 73, 0.2);
+            color: #f85149;
         }
         
         /* Canvas */
@@ -215,6 +475,23 @@
             z-index: 100;
             transform: scale(1.05);
             cursor: grabbing;
+        }
+        
+        .mind-node.highlighted {
+            border-color: #39d353 !important;
+            box-shadow: 0 0 0 3px rgba(57, 211, 83, 0.5), 0 8px 24px rgba(0, 0, 0, 0.6) !important;
+            transform: translateY(-2px) scale(1.05) !important;
+            z-index: 200 !important;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 0 0 3px rgba(57, 211, 83, 0.5), 0 8px 24px rgba(0, 0, 0, 0.6);
+            }
+            50% {
+                box-shadow: 0 0 0 6px rgba(57, 211, 83, 0.3), 0 12px 32px rgba(0, 0, 0, 0.8);
+            }
         }
         
         /* Node types */
@@ -525,7 +802,17 @@
                 <input type="file" id="fileInput" class="file-input" accept=".yaml,.yml,.tf" multiple>
             </div>
             
-            <div class="files-list" id="filesList"></div>
+            <div class="resources-panel">
+                <div id="resourcesSections"></div>
+                
+                <div class="files-section">
+                    <div class="files-title">
+                        <span>📄</span>
+                        <span>Loaded Files</span>
+                    </div>
+                    <div id="filesList"></div>
+                </div>
+            </div>
         </div>
         
         <!-- Canvas -->
@@ -718,6 +1005,7 @@
                     loadedFiles.set(fileName, { content, resources: fileResources });
                     updateFilesList();
                     updateVisualization();
+                    updateResourcesSections();
                 }
             } catch (error) {
                 console.error('Error processing file:', error);
@@ -819,15 +1107,215 @@
                 const fileItem = document.createElement('div');
                 fileItem.className = 'file-item';
                 fileItem.innerHTML = `
-                    <div class="file-name">
+                    <div class="file-info">
                         <span>📄</span>
-                        <span>${fileName}</span>
+                        <span class="file-name">${fileName}</span>
+                        <span class="file-count">${fileData.resources.length}</span>
                     </div>
-                    <div class="file-count">${fileData.resources.length}</div>
-                    <button class="remove-btn" onclick="removeFile('${fileName}')">×</button>
+                    <button class="remove-file-btn" onclick="removeFile('${fileName}')" title="Remove file">×</button>
                 `;
                 filesList.appendChild(fileItem);
             });
+        }
+        
+        function updateResourcesSections() {
+            const sectionsContainer = document.getElementById('resourcesSections');
+            sectionsContainer.innerHTML = '';
+            
+            // Group resources by provider/category
+            const sections = {
+                aws: {
+                    name: 'Amazon Web Services',
+                    description: 'AWS cloud resources and services',
+                    icon: '☁️',
+                    className: 'aws',
+                    resources: resources.filter(r => r.kind && r.kind.startsWith('aws_')),
+                    groups: {
+                        compute: { name: 'Compute', icon: '🖥️', resources: [] },
+                        database: { name: 'Database', icon: '🗄️', resources: [] },
+                        storage: { name: 'Storage', icon: '💾', resources: [] },
+                        network: { name: 'Network', icon: '🌐', resources: [] },
+                        kubernetes: { name: 'Kubernetes', icon: '☸️', resources: [] },
+                        other: { name: 'Other', icon: '📦', resources: [] }
+                    }
+                },
+                gcp: {
+                    name: 'Google Cloud Platform',
+                    description: 'GCP cloud resources and services',
+                    icon: '🔵',
+                    className: 'gcp',
+                    resources: resources.filter(r => r.kind && r.kind.startsWith('google_')),
+                    groups: {
+                        compute: { name: 'Compute', icon: '🖥️', resources: [] },
+                        database: { name: 'Database', icon: '🗄️', resources: [] },
+                        storage: { name: 'Storage', icon: '💾', resources: [] },
+                        network: { name: 'Network', icon: '🌐', resources: [] },
+                        kubernetes: { name: 'Kubernetes', icon: '☸️', resources: [] },
+                        other: { name: 'Other', icon: '📦', resources: [] }
+                    }
+                },
+                azure: {
+                    name: 'Microsoft Azure',
+                    description: 'Azure cloud resources and services',
+                    icon: '🔷',
+                    className: 'azure',
+                    resources: resources.filter(r => r.kind && r.kind.startsWith('azurerm_')),
+                    groups: {
+                        compute: { name: 'Compute', icon: '🖥️', resources: [] },
+                        database: { name: 'Database', icon: '🗄️', resources: [] },
+                        storage: { name: 'Storage', icon: '💾', resources: [] },
+                        network: { name: 'Network', icon: '🌐', resources: [] },
+                        kubernetes: { name: 'Kubernetes', icon: '☸️', resources: [] },
+                        other: { name: 'Other', icon: '📦', resources: [] }
+                    }
+                },
+                kubernetes: {
+                    name: 'Kubernetes',
+                    description: 'Native Kubernetes resources',
+                    icon: '☸️',
+                    className: 'kubernetes',
+                    resources: resources.filter(r => r.type === 'kubernetes'),
+                    groups: {
+                        workloads: { name: 'Workloads', icon: '🚀', resources: [] },
+                        services: { name: 'Services', icon: '🌐', resources: [] },
+                        config: { name: 'Config & Secrets', icon: '⚙️', resources: [] },
+                        storage: { name: 'Storage', icon: '💾', resources: [] },
+                        networking: { name: 'Networking', icon: '🔗', resources: [] },
+                        other: { name: 'Other', icon: '📦', resources: [] }
+                    }
+                }
+            };
+            
+            // Categorize resources within each section
+            Object.values(sections).forEach(section => {
+                section.resources.forEach(resource => {
+                    if (section.className === 'aws') {
+                        if (resource.kind.includes('instance') || resource.kind.includes('autoscaling')) {
+                            section.groups.compute.resources.push(resource);
+                        } else if (resource.kind.includes('rds') || resource.kind.includes('dynamodb')) {
+                            section.groups.database.resources.push(resource);
+                        } else if (resource.kind.includes('s3') || resource.kind.includes('ebs')) {
+                            section.groups.storage.resources.push(resource);
+                        } else if (resource.kind.includes('vpc') || resource.kind.includes('subnet') || resource.kind.includes('lb')) {
+                            section.groups.network.resources.push(resource);
+                        } else if (resource.kind.includes('eks')) {
+                            section.groups.kubernetes.resources.push(resource);
+                        } else {
+                            section.groups.other.resources.push(resource);
+                        }
+                    } else if (section.className === 'gcp') {
+                        if (resource.kind.includes('instance') || resource.kind.includes('group')) {
+                            section.groups.compute.resources.push(resource);
+                        } else if (resource.kind.includes('sql') || resource.kind.includes('datastore')) {
+                            section.groups.database.resources.push(resource);
+                        } else if (resource.kind.includes('storage') || resource.kind.includes('bucket')) {
+                            section.groups.storage.resources.push(resource);
+                        } else if (resource.kind.includes('network') || resource.kind.includes('firewall')) {
+                            section.groups.network.resources.push(resource);
+                        } else if (resource.kind.includes('container') || resource.kind.includes('cluster')) {
+                            section.groups.kubernetes.resources.push(resource);
+                        } else {
+                            section.groups.other.resources.push(resource);
+                        }
+                    } else if (section.className === 'azure') {
+                        if (resource.kind.includes('virtual_machine') || resource.kind.includes('scale_set')) {
+                            section.groups.compute.resources.push(resource);
+                        } else if (resource.kind.includes('sql') || resource.kind.includes('cosmosdb')) {
+                            section.groups.database.resources.push(resource);
+                        } else if (resource.kind.includes('storage')) {
+                            section.groups.storage.resources.push(resource);
+                        } else if (resource.kind.includes('network') || resource.kind.includes('lb')) {
+                            section.groups.network.resources.push(resource);
+                        } else if (resource.kind.includes('kubernetes')) {
+                            section.groups.kubernetes.resources.push(resource);
+                        } else {
+                            section.groups.other.resources.push(resource);
+                        }
+                    } else if (section.className === 'kubernetes') {
+                        if (['Deployment', 'StatefulSet', 'DaemonSet', 'Pod', 'Job', 'CronJob'].includes(resource.kind)) {
+                            section.groups.workloads.resources.push(resource);
+                        } else if (['Service'].includes(resource.kind)) {
+                            section.groups.services.resources.push(resource);
+                        } else if (['ConfigMap', 'Secret'].includes(resource.kind)) {
+                            section.groups.config.resources.push(resource);
+                        } else if (['PersistentVolumeClaim', 'PersistentVolume'].includes(resource.kind)) {
+                            section.groups.storage.resources.push(resource);
+                        } else if (['Ingress', 'NetworkPolicy'].includes(resource.kind)) {
+                            section.groups.networking.resources.push(resource);
+                        } else {
+                            section.groups.other.resources.push(resource);
+                        }
+                    }
+                });
+            });
+            
+            // Render sections
+            Object.entries(sections).forEach(([sectionKey, section]) => {
+                if (section.resources.length > 0) {
+                    const sectionElement = createResourceSection(sectionKey, section);
+                    sectionsContainer.appendChild(sectionElement);
+                }
+            });
+        }
+        
+        function createResourceSection(sectionKey, section) {
+            const sectionDiv = document.createElement('div');
+            sectionDiv.className = 'resource-section';
+            
+            const totalResources = section.resources.length;
+            const activeGroups = Object.values(section.groups).filter(g => g.resources.length > 0).length;
+            
+            sectionDiv.innerHTML = `
+                <div class="section-header" onclick="toggleSection('${sectionKey}')">
+                    <div class="section-icon ${section.className}">
+                        ${section.icon}
+                    </div>
+                    <div class="section-title">
+                        <div class="section-name">${section.name}</div>
+                        <div class="section-description">${section.description}</div>
+                    </div>
+                    <div class="section-stats">
+                        <span class="stat-badge">${totalResources} resources</span>
+                        <span class="stat-badge">${activeGroups} groups</span>
+                    </div>
+                    <div class="expand-icon">▶</div>
+                </div>
+                <div class="section-content" id="section-content-${sectionKey}">
+                    ${Object.entries(section.groups)
+                        .filter(([groupKey, group]) => group.resources.length > 0)
+                        .map(([groupKey, group]) => `
+                            <div class="resource-group">
+                                <div class="group-title">
+                                    <span class="group-icon">${group.icon}</span>
+                                    <span>${group.name} (${group.resources.length})</span>
+                                </div>
+                                ${group.resources.map(resource => `
+                                    <div class="resource-item" onclick="focusResource('${resource.id}')">
+                                        <div class="resource-info">
+                                            <div class="resource-icon">
+                                                ${icons[resource.kind] || icons.default}
+                                            </div>
+                                            <div class="resource-details">
+                                                <div class="resource-name">
+                                                    ${resource.name}
+                                                    ${resource.namespace && resource.namespace !== 'default' ? 
+                                                        `<span class="resource-namespace">${resource.namespace}</span>` : ''}
+                                                </div>
+                                                <div class="resource-type">${resource.kind}</div>
+                                            </div>
+                                        </div>
+                                        <div class="resource-actions">
+                                            <button class="action-btn" onclick="event.stopPropagation(); expandResource('${resource.id}')" title="Expand details">📋</button>
+                                            <button class="action-btn" onclick="event.stopPropagation(); centerOnResource('${resource.id}')" title="Center on canvas">🎯</button>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `).join('')}
+                </div>
+            `;
+            
+            return sectionDiv;
         }
         
         function updateVisualization() {
@@ -850,6 +1338,7 @@
             applyLayout();
             render();
             updateStats();
+            updateResourcesSections();
         }
         
         function findConnections() {
@@ -1357,6 +1846,58 @@
             loadedFiles.delete(fileName);
             updateFilesList();
             updateVisualization();
+        };
+        
+        window.toggleSection = function(sectionKey) {
+            const header = event.currentTarget;
+            const content = document.getElementById(`section-content-${sectionKey}`);
+            
+            header.classList.toggle('expanded');
+            
+            if (header.classList.contains('expanded')) {
+                content.style.maxHeight = content.scrollHeight + 'px';
+            } else {
+                content.style.maxHeight = '0';
+            }
+        };
+        
+        window.focusResource = function(resourceId) {
+            // Highlight resource on canvas
+            const node = document.getElementById(resourceId);
+            if (node) {
+                // Remove previous highlights
+                document.querySelectorAll('.mind-node.highlighted').forEach(n => n.classList.remove('highlighted'));
+                
+                // Add highlight
+                node.classList.add('highlighted');
+                
+                // Center on resource
+                centerOnResource(resourceId);
+                
+                // Remove highlight after 3 seconds
+                setTimeout(() => {
+                    node.classList.remove('highlighted');
+                }, 3000);
+            }
+        };
+        
+        window.expandResource = function(resourceId) {
+            if (!expandedNodes.has(resourceId)) {
+                toggleExpand(resourceId);
+            }
+        };
+        
+        window.centerOnResource = function(resourceId) {
+            const resource = resources.find(r => r.id === resourceId);
+            if (resource) {
+                const canvas = document.getElementById('canvas');
+                const canvasRect = canvas.getBoundingClientRect();
+                
+                panOffset.x = canvasRect.width / 2 - resource.x * zoomLevel;
+                panOffset.y = canvasRect.height / 2 - resource.y * zoomLevel;
+                
+                updateViewport();
+            }
         };
         
         function deselectAll() {
