@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes & Terraform Visualizer V2</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #0f0f23;
+            color: #e0e0e0;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        
+        .main-container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 350px;
+            background: #1a1a2e;
+            border-right: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            background: #16213e;
+            border-bottom: 1px solid #333;
+        }
+        
+        .sidebar-header h1 {
+            font-size: 1.5em;
+            font-weight: 500;
+            margin-bottom: 10px;
+            color: #00d4ff;
+        }
+        
+        .sidebar-header p {
+            font-size: 0.9em;
+            color: #888;
+        }
+        
+        .drop-zone {
+            margin: 20px;
+            padding: 40px 20px;
+            border: 2px dashed #444;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(0, 212, 255, 0.05);
+        }
+        
+        .drop-zone:hover {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.1);
+        }
+        
+        .drop-zone.drag-over {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+        }
+        
+        .drop-zone-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+            opacity: 0.6;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .files-section {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .file-item {
+            background: #16213e;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+        
+        .file-item:hover {
+            background: #1e2a4a;
+        }
+        
+        .file-name {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+        }
+        
+        .file-stats {
+            font-size: 0.8em;
+            color: #888;
+        }
+        
+        .remove-btn {
+            background: #ff4444;
+            border: none;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: all 0.2s;
+        }
+        
+        .remove-btn:hover {
+            background: #ff6666;
+        }
+        
+        /* Canvas Area */
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: #0a0a1a;
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(0, 212, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(0, 255, 136, 0.1) 0%, transparent 50%);
+        }
+        
+        .controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 1000;
+        }
+        
+        .control-btn {
+            background: rgba(26, 26, 46, 0.9);
+            border: 1px solid #333;
+            color: #e0e0e0;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            backdrop-filter: blur(10px);
+        }
+        
+        .control-btn:hover {
+            background: rgba(0, 212, 255, 0.2);
+            border-color: #00d4ff;
+        }
+        
+        .control-btn.active {
+            background: rgba(0, 212, 255, 0.3);
+            border-color: #00d4ff;
+            color: #00d4ff;
+        }
+        
+        /* Canvas */
+        #canvas {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: auto;
+        }
+        
+        .viewport {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            min-width: 2000px;
+            min-height: 2000px;
+        }
+        
+        /* Resource Groups */
+        .resource-group {
+            position: absolute;
+            background: rgba(26, 26, 46, 0.6);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .group-header {
+            font-size: 0.9em;
+            font-weight: 600;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+        
+        /* Resource Nodes */
+        .resource-node {
+            position: absolute;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 16px;
+            width: 220px;
+            cursor: move;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .resource-node:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            border-color: #00d4ff;
+            z-index: 100;
+        }
+        
+        .resource-node.selected {
+            border-color: #00ff88;
+            box-shadow: 0 0 0 3px rgba(0, 255, 136, 0.3);
+        }
+        
+        /* Resource type specific colors */
+        .resource-node.deployment {
+            border-color: #3b82f6;
+        }
+        
+        .resource-node.service {
+            border-color: #10b981;
+        }
+        
+        .resource-node.ingress {
+            border-color: #8b5cf6;
+        }
+        
+        .resource-node.configmap {
+            border-color: #f59e0b;
+        }
+        
+        .resource-node.secret {
+            border-color: #ef4444;
+        }
+        
+        .resource-node.statefulset {
+            border-color: #06b6d4;
+        }
+        
+        .resource-node.persistentvolumeclaim {
+            border-color: #84cc16;
+        }
+        
+        .node-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        
+        .node-icon {
+            font-size: 2em;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+        }
+        
+        .node-title {
+            flex: 1;
+        }
+        
+        .node-type {
+            font-size: 0.75em;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .node-name {
+            font-size: 1em;
+            font-weight: 600;
+            color: #e0e0e0;
+            margin-top: 2px;
+            word-break: break-word;
+        }
+        
+        .node-details {
+            font-size: 0.85em;
+            color: #999;
+            line-height: 1.4;
+        }
+        
+        .node-detail-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .node-detail-item:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-label {
+            color: #666;
+        }
+        
+        .detail-value {
+            color: #00d4ff;
+            font-weight: 500;
+        }
+        
+        /* Connections */
+        .connection {
+            position: absolute;
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .connection-path {
+            stroke: #00d4ff;
+            stroke-width: 2;
+            fill: none;
+            opacity: 0.6;
+            stroke-dasharray: 5, 5;
+            animation: dash 20s linear infinite;
+        }
+        
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -100;
+            }
+        }
+        
+        .connection-path.service {
+            stroke: #10b981;
+        }
+        
+        .connection-path.volume {
+            stroke: #f59e0b;
+        }
+        
+        .connection-path.config {
+            stroke: #8b5cf6;
+        }
+        
+        /* Stats Panel */
+        .stats-panel {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(26, 26, 46, 0.9);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 16px;
+            backdrop-filter: blur(10px);
+            min-width: 200px;
+        }
+        
+        .stats-title {
+            font-size: 0.9em;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #00d4ff;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 0.85em;
+        }
+        
+        .stat-label {
+            color: #888;
+        }
+        
+        .stat-value {
+            color: #e0e0e0;
+            font-weight: 600;
+        }
+        
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        .resource-node {
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        /* Zoom Controls */
+        .zoom-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .zoom-btn {
+            width: 36px;
+            height: 36px;
+            background: rgba(26, 26, 46, 0.9);
+            border: 1px solid #333;
+            color: #e0e0e0;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            backdrop-filter: blur(10px);
+        }
+        
+        .zoom-btn:hover {
+            background: rgba(0, 212, 255, 0.2);
+            border-color: #00d4ff;
+        }
+        
+        /* Empty State */
+        .empty-state {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            opacity: 0.5;
+        }
+        
+        .empty-state-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+        
+        .empty-state-text {
+            font-size: 1.2em;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>🚀 K8s & Terraform Visualizer</h1>
+                <p>Drop your YAML and Terraform files to visualize</p>
+            </div>
+            
+            <div class="drop-zone" id="dropZone">
+                <div class="drop-zone-icon">📁</div>
+                <div>Drop files here or click to browse</div>
+                <div style="font-size: 0.8em; color: #666; margin-top: 5px;">
+                    Supports: .yaml, .yml, .tf
+                </div>
+                <input type="file" id="fileInput" class="file-input" accept=".yaml,.yml,.tf" multiple>
+            </div>
+            
+            <div class="files-section" id="filesSection"></div>
+        </div>
+        
+        <!-- Canvas -->
+        <div class="canvas-container">
+            <div class="controls">
+                <button class="control-btn active" onclick="setLayout('smart')">✨ Smart Layout</button>
+                <button class="control-btn" onclick="setLayout('flow')">🌊 Flow Layout</button>
+                <button class="control-btn" onclick="setLayout('force')">🔗 Force Layout</button>
+                <button class="control-btn" onclick="clearAll()">🗑️ Clear</button>
+                <button class="control-btn" onclick="loadExample()">📝 Example</button>
+            </div>
+            
+            <div class="zoom-controls">
+                <button class="zoom-btn" onclick="zoomIn()">+</button>
+                <button class="zoom-btn" onclick="resetZoom()">↻</button>
+                <button class="zoom-btn" onclick="zoomOut()">-</button>
+            </div>
+            
+            <div id="canvas">
+                <div class="viewport" id="viewport">
+                    <svg id="connectionsSvg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></svg>
+                    <div class="empty-state" id="emptyState">
+                        <div class="empty-state-icon">🎯</div>
+                        <div class="empty-state-text">Drop files to start visualizing</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="stats-panel" id="statsPanel" style="display: none;">
+                <div class="stats-title">📊 Project Stats</div>
+                <div id="statsContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let resources = [];
+        let connections = [];
+        let loadedFiles = new Map();
+        let currentLayout = 'smart';
+        let zoomLevel = 1;
+        let selectedNode = null;
+        let isDragging = false;
+        let dragOffset = { x: 0, y: 0 };
+        
+        // Resource icons
+        const resourceIcons = {
+            // Kubernetes
+            'Deployment': '🚀',
+            'Service': '🌐',
+            'ConfigMap': '⚙️',
+            'Secret': '🔐',
+            'Ingress': '🚪',
+            'PersistentVolumeClaim': '💾',
+            'StatefulSet': '🗂️',
+            'DaemonSet': '😈',
+            'Pod': '📦',
+            'ReplicaSet': '♻️',
+            'Job': '⚡',
+            'CronJob': '⏰',
+            'ServiceAccount': '👤',
+            'Role': '🎭',
+            'RoleBinding': '🔗',
+            
+            // AWS
+            'aws_instance': '🖥️',
+            'aws_eks_cluster': '☸️',
+            'aws_rds_instance': '🗄️',
+            'aws_s3_bucket': '🪣',
+            'aws_vpc': '🌐',
+            
+            // GCP
+            'google_compute_instance': '🖥️',
+            'google_container_cluster': '☸️',
+            'google_sql_database_instance': '🗄️',
+            
+            // Azure
+            'azurerm_virtual_machine': '🖥️',
+            'azurerm_kubernetes_cluster': '☸️',
+            'azurerm_sql_server': '🗄️',
+            
+            // Default
+            'default': '📄'
+        };
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            setupDragAndDrop();
+            setupCanvas();
+        });
+        
+        // Setup drag and drop
+        function setupDragAndDrop() {
+            const dropZone = document.getElementById('dropZone');
+            const fileInput = document.getElementById('fileInput');
+            
+            dropZone.addEventListener('click', () => fileInput.click());
+            
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('drag-over');
+            });
+            
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('drag-over');
+            });
+            
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('drag-over');
+                handleFiles(e.dataTransfer.files);
+            });
+            
+            fileInput.addEventListener('change', (e) => {
+                handleFiles(e.target.files);
+            });
+        }
+        
+        // Setup canvas interactions
+        function setupCanvas() {
+            const viewport = document.getElementById('viewport');
+            
+            viewport.addEventListener('mousedown', (e) => {
+                if (e.target.classList.contains('resource-node')) {
+                    startDragging(e);
+                }
+            });
+            
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging && selectedNode) {
+                    drag(e);
+                }
+            });
+            
+            document.addEventListener('mouseup', () => {
+                stopDragging();
+            });
+        }
+        
+        // Handle files
+        function handleFiles(files) {
+            Array.from(files).forEach(file => {
+                if (file.name.match(/\.(yaml|yml|tf)$/i)) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        processFile(file.name, e.target.result);
+                    };
+                    reader.readAsText(file);
+                }
+            });
+        }
+        
+        // Process file content
+        function processFile(fileName, content) {
+            try {
+                const fileResources = [];
+                
+                if (fileName.endsWith('.tf')) {
+                    // Parse Terraform
+                    fileResources.push(...parseTerraformFile(content));
+                } else {
+                    // Parse YAML
+                    const docs = jsyaml.loadAll(content);
+                    docs.forEach(doc => {
+                        if (doc && doc.kind) {
+                            fileResources.push(parseKubernetesResource(doc));
+                        }
+                    });
+                }
+                
+                if (fileResources.length > 0) {
+                    loadedFiles.set(fileName, {
+                        content: content,
+                        resources: fileResources
+                    });
+                    
+                    updateFilesList();
+                    updateVisualization();
+                }
+            } catch (error) {
+                console.error('Error processing file:', error);
+            }
+        }
+        
+        // Parse Kubernetes resource
+        function parseKubernetesResource(doc) {
+            const resource = {
+                id: `${doc.kind}-${doc.metadata?.name || Math.random()}`,
+                kind: doc.kind,
+                name: doc.metadata?.name || 'unnamed',
+                namespace: doc.metadata?.namespace || 'default',
+                labels: doc.metadata?.labels || {},
+                spec: doc.spec || {},
+                type: 'kubernetes'
+            };
+            
+            // Extract specific details
+            switch (doc.kind) {
+                case 'Deployment':
+                case 'StatefulSet':
+                    resource.replicas = doc.spec?.replicas || 1;
+                    resource.containers = doc.spec?.template?.spec?.containers || [];
+                    break;
+                case 'Service':
+                    resource.selector = doc.spec?.selector || {};
+                    resource.ports = doc.spec?.ports || [];
+                    break;
+                case 'ConfigMap':
+                case 'Secret':
+                    resource.dataKeys = Object.keys(doc.data || {});
+                    break;
+            }
+            
+            return resource;
+        }
+        
+        // Simple Terraform parser
+        function parseTerraformFile(content) {
+            const resources = [];
+            const resourceRegex = /resource\s+"([^"]+)"\s+"([^"]+)"\s*{/g;
+            let match;
+            
+            while ((match = resourceRegex.exec(content)) !== null) {
+                resources.push({
+                    id: `${match[1]}-${match[2]}`,
+                    kind: match[1],
+                    name: match[2],
+                    type: 'terraform',
+                    provider: match[1].split('_')[0]
+                });
+            }
+            
+            return resources;
+        }
+        
+        // Update files list
+        function updateFilesList() {
+            const filesSection = document.getElementById('filesSection');
+            filesSection.innerHTML = '';
+            
+            loadedFiles.forEach((fileData, fileName) => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `
+                    <div class="file-name">
+                        <span>📄</span>
+                        <span>${fileName}</span>
+                    </div>
+                    <div class="file-stats">${fileData.resources.length} resources</div>
+                    <button class="remove-btn" onclick="removeFile('${fileName}')">Remove</button>
+                `;
+                filesSection.appendChild(fileItem);
+            });
+        }
+        
+        // Update visualization
+        function updateVisualization() {
+            // Collect all resources
+            resources = [];
+            loadedFiles.forEach(fileData => {
+                resources.push(...fileData.resources);
+            });
+            
+            if (resources.length === 0) {
+                document.getElementById('emptyState').style.display = 'block';
+                document.getElementById('statsPanel').style.display = 'none';
+                return;
+            }
+            
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('statsPanel').style.display = 'block';
+            
+            // Find connections
+            findConnections();
+            
+            // Apply layout
+            applyLayout();
+            
+            // Render
+            render();
+            
+            // Update stats
+            updateStats();
+        }
+        
+        // Find connections between resources
+        function findConnections() {
+            connections = [];
+            
+            resources.forEach(resource => {
+                if (resource.kind === 'Service' && resource.selector) {
+                    // Find matching deployments
+                    resources.forEach(target => {
+                        if (['Deployment', 'StatefulSet'].includes(target.kind)) {
+                            if (matchLabels(resource.selector, target.labels)) {
+                                connections.push({
+                                    from: resource.id,
+                                    to: target.id,
+                                    type: 'service'
+                                });
+                            }
+                        }
+                    });
+                }
+            });
+        }
+        
+        // Check if labels match
+        function matchLabels(selector, labels) {
+            return Object.entries(selector).every(([key, value]) => labels[key] === value);
+        }
+        
+        // Apply layout algorithm
+        function applyLayout() {
+            switch (currentLayout) {
+                case 'smart':
+                    applySmartLayout();
+                    break;
+                case 'flow':
+                    applyFlowLayout();
+                    break;
+                case 'force':
+                    applyForceLayout();
+                    break;
+            }
+        }
+        
+        // Smart layout - groups by type and layers
+        function applySmartLayout() {
+            const layers = {
+                ingress: [],
+                service: [],
+                workload: [],
+                config: [],
+                storage: []
+            };
+            
+            // Categorize resources
+            resources.forEach(resource => {
+                if (resource.kind === 'Ingress') {
+                    layers.ingress.push(resource);
+                } else if (resource.kind === 'Service') {
+                    layers.service.push(resource);
+                } else if (['Deployment', 'StatefulSet', 'DaemonSet'].includes(resource.kind)) {
+                    layers.workload.push(resource);
+                } else if (['ConfigMap', 'Secret'].includes(resource.kind)) {
+                    layers.config.push(resource);
+                } else if (resource.kind === 'PersistentVolumeClaim') {
+                    layers.storage.push(resource);
+                }
+            });
+            
+            // Position layers
+            let currentY = 100;
+            const layerSpacing = 250;
+            const nodeSpacing = 260;
+            
+            Object.entries(layers).forEach(([layerName, layerResources]) => {
+                if (layerResources.length > 0) {
+                    const startX = (window.innerWidth - (layerResources.length * nodeSpacing)) / 2 + 200;
+                    
+                    layerResources.forEach((resource, index) => {
+                        resource.x = startX + (index * nodeSpacing);
+                        resource.y = currentY;
+                    });
+                    
+                    currentY += layerSpacing;
+                }
+            });
+        }
+        
+        // Flow layout - left to right flow
+        function applyFlowLayout() {
+            const columns = [];
+            const processed = new Set();
+            
+            // Find root nodes (no incoming connections)
+            const roots = resources.filter(r => !connections.some(c => c.to === r.id));
+            
+            // Build columns
+            let currentColumn = [...roots];
+            while (currentColumn.length > 0) {
+                columns.push(currentColumn);
+                currentColumn.forEach(r => processed.add(r.id));
+                
+                const nextColumn = [];
+                currentColumn.forEach(resource => {
+                    connections
+                        .filter(c => c.from === resource.id && !processed.has(c.to))
+                        .forEach(c => {
+                            const target = resources.find(r => r.id === c.to);
+                            if (target && !nextColumn.includes(target)) {
+                                nextColumn.push(target);
+                            }
+                        });
+                });
+                
+                currentColumn = nextColumn;
+            }
+            
+            // Add unprocessed resources
+            const unprocessed = resources.filter(r => !processed.has(r.id));
+            if (unprocessed.length > 0) {
+                columns.push(unprocessed);
+            }
+            
+            // Position columns
+            const columnSpacing = 300;
+            const nodeSpacing = 200;
+            
+            columns.forEach((column, colIndex) => {
+                const x = 100 + (colIndex * columnSpacing);
+                const startY = (window.innerHeight - (column.length * nodeSpacing)) / 2;
+                
+                column.forEach((resource, rowIndex) => {
+                    resource.x = x;
+                    resource.y = startY + (rowIndex * nodeSpacing);
+                });
+            });
+        }
+        
+        // Force-directed layout
+        function applyForceLayout() {
+            // Simple force simulation
+            const centerX = window.innerWidth / 2;
+            const centerY = window.innerHeight / 2;
+            const idealDistance = 250;
+            
+            // Initialize random positions
+            resources.forEach(resource => {
+                resource.x = centerX + (Math.random() - 0.5) * 400;
+                resource.y = centerY + (Math.random() - 0.5) * 400;
+            });
+            
+            // Simulate forces
+            for (let iteration = 0; iteration < 50; iteration++) {
+                resources.forEach((r1, i) => {
+                    let fx = 0;
+                    let fy = 0;
+                    
+                    resources.forEach((r2, j) => {
+                        if (i !== j) {
+                            const dx = r1.x - r2.x;
+                            const dy = r1.y - r2.y;
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+                            
+                            if (distance < idealDistance) {
+                                const force = (idealDistance - distance) / distance;
+                                fx += dx * force * 0.1;
+                                fy += dy * force * 0.1;
+                            }
+                        }
+                    });
+                    
+                    // Apply forces
+                    r1.x += fx;
+                    r1.y += fy;
+                    
+                    // Keep within bounds
+                    r1.x = Math.max(100, Math.min(window.innerWidth - 300, r1.x));
+                    r1.y = Math.max(100, Math.min(window.innerHeight - 200, r1.y));
+                });
+            }
+        }
+        
+        // Render the visualization
+        function render() {
+            const viewport = document.getElementById('viewport');
+            
+            // Clear existing nodes (keep SVG for connections)
+            const nodes = viewport.querySelectorAll('.resource-node, .resource-group');
+            nodes.forEach(node => node.remove());
+            
+            // Render nodes
+            resources.forEach(resource => {
+                const node = createResourceNode(resource);
+                viewport.appendChild(node);
+            });
+            
+            // Render connections
+            renderConnections();
+        }
+        
+        // Create resource node element
+        function createResourceNode(resource) {
+            const node = document.createElement('div');
+            node.className = `resource-node ${resource.kind.toLowerCase()}`;
+            node.id = resource.id;
+            node.style.left = `${resource.x}px`;
+            node.style.top = `${resource.y}px`;
+            
+            const icon = resourceIcons[resource.kind] || resourceIcons.default;
+            
+            let details = '';
+            if (resource.replicas !== undefined) {
+                details += `<div class="node-detail-item">
+                    <span class="detail-label">Replicas</span>
+                    <span class="detail-value">${resource.replicas}</span>
+                </div>`;
+            }
+            if (resource.ports && resource.ports.length > 0) {
+                details += `<div class="node-detail-item">
+                    <span class="detail-label">Ports</span>
+                    <span class="detail-value">${resource.ports.map(p => p.port).join(', ')}</span>
+                </div>`;
+            }
+            if (resource.dataKeys && resource.dataKeys.length > 0) {
+                details += `<div class="node-detail-item">
+                    <span class="detail-label">Keys</span>
+                    <span class="detail-value">${resource.dataKeys.length}</span>
+                </div>`;
+            }
+            
+            node.innerHTML = `
+                <div class="node-header">
+                    <div class="node-icon">${icon}</div>
+                    <div class="node-title">
+                        <div class="node-type">${resource.kind}</div>
+                        <div class="node-name">${resource.name}</div>
+                    </div>
+                </div>
+                ${details ? `<div class="node-details">${details}</div>` : ''}
+            `;
+            
+            return node;
+        }
+        
+        // Render connections
+        function renderConnections() {
+            const svg = document.getElementById('connectionsSvg');
+            svg.innerHTML = '';
+            
+            connections.forEach(connection => {
+                const fromNode = document.getElementById(connection.from);
+                const toNode = document.getElementById(connection.to);
+                
+                if (fromNode && toNode) {
+                    const fromRect = fromNode.getBoundingClientRect();
+                    const toRect = toNode.getBoundingClientRect();
+                    const canvasRect = svg.getBoundingClientRect();
+                    
+                    const fromX = fromRect.left + fromRect.width / 2 - canvasRect.left;
+                    const fromY = fromRect.top + fromRect.height / 2 - canvasRect.top;
+                    const toX = toRect.left + toRect.width / 2 - canvasRect.left;
+                    const toY = toRect.top + toRect.height / 2 - canvasRect.top;
+                    
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    
+                    // Create curved path
+                    const controlX = (fromX + toX) / 2;
+                    const controlY1 = fromY;
+                    const controlY2 = toY;
+                    
+                    path.setAttribute('d', `M ${fromX} ${fromY} C ${controlX} ${controlY1}, ${controlX} ${controlY2}, ${toX} ${toY}`);
+                    path.setAttribute('class', `connection-path ${connection.type}`);
+                    
+                    svg.appendChild(path);
+                }
+            });
+        }
+        
+        // Update stats
+        function updateStats() {
+            const statsContent = document.getElementById('statsContent');
+            
+            const stats = {
+                'Total Resources': resources.length,
+                'Namespaces': [...new Set(resources.filter(r => r.namespace).map(r => r.namespace))].length,
+                'Deployments': resources.filter(r => r.kind === 'Deployment').length,
+                'Services': resources.filter(r => r.kind === 'Service').length,
+                'Connections': connections.length
+            };
+            
+            statsContent.innerHTML = Object.entries(stats)
+                .map(([label, value]) => `
+                    <div class="stat-item">
+                        <span class="stat-label">${label}</span>
+                        <span class="stat-value">${value}</span>
+                    </div>
+                `).join('');
+        }
+        
+        // Dragging functionality
+        function startDragging(e) {
+            selectedNode = e.target.closest('.resource-node');
+            if (selectedNode) {
+                isDragging = true;
+                const rect = selectedNode.getBoundingClientRect();
+                dragOffset.x = e.clientX - rect.left;
+                dragOffset.y = e.clientY - rect.top;
+                selectedNode.classList.add('selected');
+            }
+        }
+        
+        function drag(e) {
+            if (isDragging && selectedNode) {
+                const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+                const x = (e.clientX - canvasRect.left - dragOffset.x) / zoomLevel;
+                const y = (e.clientY - canvasRect.top - dragOffset.y) / zoomLevel;
+                
+                selectedNode.style.left = `${x}px`;
+                selectedNode.style.top = `${y}px`;
+                
+                // Update resource position
+                const resource = resources.find(r => r.id === selectedNode.id);
+                if (resource) {
+                    resource.x = x;
+                    resource.y = y;
+                }
+                
+                // Update connections
+                renderConnections();
+            }
+        }
+        
+        function stopDragging() {
+            if (selectedNode) {
+                selectedNode.classList.remove('selected');
+            }
+            isDragging = false;
+            selectedNode = null;
+        }
+        
+        // Control functions
+        window.setLayout = function(layout) {
+            currentLayout = layout;
+            document.querySelectorAll('.control-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            applyLayout();
+            render();
+        };
+        
+        window.clearAll = function() {
+            resources = [];
+            connections = [];
+            loadedFiles.clear();
+            updateFilesList();
+            updateVisualization();
+        };
+        
+        window.removeFile = function(fileName) {
+            loadedFiles.delete(fileName);
+            updateFilesList();
+            updateVisualization();
+        };
+        
+        window.zoomIn = function() {
+            zoomLevel = Math.min(zoomLevel * 1.2, 3);
+            updateZoom();
+        };
+        
+        window.zoomOut = function() {
+            zoomLevel = Math.max(zoomLevel / 1.2, 0.3);
+            updateZoom();
+        };
+        
+        window.resetZoom = function() {
+            zoomLevel = 1;
+            updateZoom();
+        };
+        
+        function updateZoom() {
+            const viewport = document.getElementById('viewport');
+            viewport.style.transform = `scale(${zoomLevel})`;
+            viewport.style.transformOrigin = 'top left';
+        }
+        
+        // Load example
+        window.loadExample = function() {
+            const exampleYaml = `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-app
+  labels:
+    app: web
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-service
+spec:
+  selector:
+    app: web
+  ports:
+  - port: 80
+    targetPort: 80
+  type: LoadBalancer
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web-ingress
+spec:
+  rules:
+  - host: example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: web-service
+            port:
+              number: 80
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  environment: production
+  debug: "false"`;
+            
+            processFile('example.yaml', exampleYaml);
+        };
+    </script>
+</body>
+</html>
