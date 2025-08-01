@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kubernetes & Terraform Visualizer</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@cdktf/hcl2json@0.19.0/lib/index.js"></script>
     <style>
         * {
             margin: 0;
@@ -2107,16 +2106,16 @@
             const toCenterX = toRect.left + toRect.width / 2 - containerRect.left;
             const toCenterY = toRect.top + toRect.height / 2 - containerRect.top;
             
-            // Calculate angle between nodes
-            const angle = Math.atan2(toCenterY - fromCenterY, toCenterX - fromCenterX);
+            // Calculate connection angle between nodes
+            const connectionAngle = Math.atan2(toCenterY - fromCenterY, toCenterX - fromCenterX);
             
             // Start point at edge of fromNode
-            const fromX = fromCenterX + Math.cos(angle) * (fromRect.width / 2);
-            const fromY = fromCenterY + Math.sin(angle) * (fromRect.height / 2);
+            const fromX = fromCenterX + Math.cos(connectionAngle) * (fromRect.width / 2);
+            const fromY = fromCenterY + Math.sin(connectionAngle) * (fromRect.height / 2);
             
             // End point at edge of toNode
-            const toX = toCenterX - Math.cos(angle) * (toRect.width / 2);
-            const toY = toCenterY - Math.sin(angle) * (toRect.height / 2);
+            const toX = toCenterX - Math.cos(connectionAngle) * (toRect.width / 2);
+            const toY = toCenterY - Math.sin(connectionAngle) * (toRect.height / 2);
             
             const distance = Math.sqrt(Math.pow(toX - fromX, 2) + Math.pow(toY - fromY, 2));
             const angle = Math.atan2(toY - fromY, toX - fromX);
@@ -2270,8 +2269,10 @@
             document.getElementById('errorContainer').innerHTML = '';
         }
         
-        // Make removeFile function global
+        // Make functions global for HTML onclick handlers
         window.removeFile = removeFile;
+        window.setLayout = setLayout;
+        window.clearVisualization = clearVisualization;
 
 
         // Show error message
