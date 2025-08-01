@@ -140,17 +140,28 @@
             backdrop-filter: blur(10px);
             border-radius: 15px;
             padding: 20px;
-            min-width: 200px;
+            min-width: 240px;
+            max-width: 320px;
             cursor: move;
             transition: all 0.3s ease;
             animation: nodeAppear 0.5s ease-out;
             border: 2px solid transparent;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
         
         .resource-node:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: translateY(-3px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+            z-index: 100;
+        }
+        
+        .resource-node:hover .resource-details-extended {
+            max-height: 400px;
+            opacity: 1;
         }
         
         .resource-node.deployment {
@@ -242,6 +253,10 @@
             border-radius: 8px;
             margin-top: 10px;
             font-size: 0.8em;
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            transition: all 0.3s ease;
         }
         
         .detail-row {
@@ -265,16 +280,18 @@
         .detail-value {
             opacity: 0.9;
             text-align: right;
-            max-width: 120px;
+            max-width: 140px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            font-size: 0.85em;
         }
         
         .resource-icon {
-            font-size: 2.5em;
+            font-size: 3em;
             text-align: center;
             margin-bottom: 10px;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
         }
         
         .resource-kind {
@@ -289,21 +306,28 @@
             font-size: 1.2em;
             font-weight: bold;
             margin-bottom: 10px;
+            text-align: center;
+            word-break: break-word;
+            max-width: 100%;
         }
         
         .resource-details {
             font-size: 0.9em;
             opacity: 0.8;
             margin-top: 10px;
+            width: 100%;
+            text-align: center;
         }
         
         .connection-line {
             position: absolute;
             background: linear-gradient(90deg, rgba(76, 175, 80, 0.8), rgba(76, 175, 80, 0.3));
-            height: 2px;
+            height: 3px;
             transform-origin: left center;
             pointer-events: none;
-            z-index: 1;
+            z-index: -1;
+            border-radius: 2px;
+            box-shadow: 0 0 4px rgba(0,0,0,0.2);
         }
         
         .connection-arrow {
@@ -402,6 +426,15 @@
                 opacity: 1;
                 transform: scale(1);
             }
+        }
+        
+        .resource-summary {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            margin-top: 8px;
+            display: inline-block;
         }
         
         .error-message {
@@ -1513,9 +1546,9 @@
         // Position resources based on layout with proper container constraints
         function positionResources(resources, containerName, containerIndex) {
             // Each container gets its own coordinate space starting from (0,0)
-            const containerPadding = 50;
+            const containerPadding = 60;
             const startX = containerPadding;
-            const startY = containerPadding + 30; // Account for container label
+            const startY = containerPadding + 40; // Account for container label
             
             switch (currentLayout) {
                 case 'hierarchical':
@@ -1531,10 +1564,10 @@
 
         // Grid layout positioning - clean and predictable
         function positionGridLayout(resources, startX, startY, containerName) {
-            const nodeWidth = 220;
-            const nodeHeight = 140;
-            const spacingX = 250;
-            const spacingY = 160;
+            const nodeWidth = 280;
+            const nodeHeight = 180;
+            const spacingX = 320;
+            const spacingY = 220;
             const maxColumns = 4; // Maximum resources per row
             
             if (containerName.startsWith('k8s-')) {
@@ -1604,10 +1637,10 @@
                 return { width: 300, height: 200 };
             }
 
-            const nodeWidth = 220;
-            const nodeHeight = 140;
-            const spacingX = 250;
-            const spacingY = 160;
+            const nodeWidth = 280;
+            const nodeHeight = 180;
+            const spacingX = 320;
+            const spacingY = 220;
             const maxColumns = 4;
             const padding = 50;
             const labelHeight = 30;
@@ -1692,12 +1725,14 @@
             });
 
             Object.entries(levelGroups).forEach(([level, levelResources]) => {
-                const x = 50 + (parseInt(level) * 280);
-                const spacingY = 160;
+                const x = 60 + (parseInt(level) * 340);
+                const spacingY = 220;
+                const totalHeight = levelResources.length * spacingY;
+                const startOffset = (600 - totalHeight) / 2;
                 
                 levelResources.forEach((resource, index) => {
                     resource.x = x;
-                    resource.y = startY + (index * spacingY);
+                    resource.y = Math.max(startY, startY + startOffset + (index * spacingY));
                 });
             });
         }
@@ -1742,15 +1777,33 @@
 
         // Circular layout positioning
         function positionCircular(resources, startY, containerName) {
-            const centerX = 400;
-            const centerY = startY + 200;
-            const radius = Math.min(200, Math.max(100, resources.length * 15));
-            const angleStep = (2 * Math.PI) / resources.length;
+            const centerX = 500;
+            const centerY = startY + 300;
+            const baseRadius = 250;
+            const radiusIncrement = 60;
             
-            resources.forEach((resource, index) => {
-                const angle = index * angleStep;
-                resource.x = centerX + radius * Math.cos(angle);
-                resource.y = centerY + radius * Math.sin(angle);
+            // Group resources by type for concentric circles
+            const groups = {
+                ingress: resources.filter(r => r.kind === 'Ingress'),
+                service: resources.filter(r => r.kind === 'Service'),
+                workload: resources.filter(r => ['Deployment', 'StatefulSet', 'DaemonSet'].includes(r.kind)),
+                config: resources.filter(r => ['ConfigMap', 'Secret', 'PersistentVolumeClaim'].includes(r.kind)),
+                other: resources.filter(r => !['Ingress', 'Service', 'Deployment', 'StatefulSet', 'DaemonSet', 'ConfigMap', 'Secret', 'PersistentVolumeClaim'].includes(r.kind))
+            };
+            
+            let currentRadius = 0;
+            ['ingress', 'service', 'workload', 'config', 'other'].forEach((groupName, groupIndex) => {
+                const groupResources = groups[groupName];
+                if (groupResources.length > 0) {
+                    currentRadius = baseRadius + (groupIndex * radiusIncrement);
+                    const angleStep = (2 * Math.PI) / Math.max(groupResources.length, 1);
+                    
+                    groupResources.forEach((resource, index) => {
+                        const angle = index * angleStep - Math.PI / 2; // Start from top
+                        resource.x = centerX + currentRadius * Math.cos(angle);
+                        resource.y = centerY + currentRadius * Math.sin(angle);
+                    });
+                }
             });
         }
 
@@ -1921,17 +1974,24 @@
                 extendedDetails.push(`Labels: ${Object.keys(resource.labels).length}`);
             }
             
-            let html = basicDetails.join('<br>');
+            let html = '';
+            
+            // Add basic details as summary
+            if (basicDetails.length > 0) {
+                html += `<div class="resource-summary">${basicDetails.join(' • ')}</div>`;
+            }
             
             // Add extended details if available
             if (extendedDetails.length > 0) {
                 html += '<div class="resource-details-extended">';
                 extendedDetails.forEach(detail => {
                     const [label, value] = detail.split(': ');
-                    html += `<div class="detail-row">
-                        <span class="detail-label">${label}:</span>
-                        <span class="detail-value">${value || ''}</span>
-                    </div>`;
+                    if (value) {
+                        html += `<div class="detail-row">
+                            <span class="detail-label">${label}:</span>
+                            <span class="detail-value" title="${value}">${value}</span>
+                        </div>`;
+                    }
                 });
                 html += '</div>';
             }
@@ -2040,10 +2100,22 @@
             const toRect = toNode.getBoundingClientRect();
             const containerRect = visualizationContainer.getBoundingClientRect();
             
-            const fromX = fromRect.left + fromRect.width / 2 - containerRect.left;
-            const fromY = fromRect.top + fromRect.height / 2 - containerRect.top;
-            const toX = toRect.left + toRect.width / 2 - containerRect.left;
-            const toY = toRect.top + toRect.height / 2 - containerRect.top;
+            // Calculate connection points at the edges of nodes
+            const fromCenterX = fromRect.left + fromRect.width / 2 - containerRect.left;
+            const fromCenterY = fromRect.top + fromRect.height / 2 - containerRect.top;
+            const toCenterX = toRect.left + toRect.width / 2 - containerRect.left;
+            const toCenterY = toRect.top + toRect.height / 2 - containerRect.top;
+            
+            // Calculate angle between nodes
+            const angle = Math.atan2(toCenterY - fromCenterY, toCenterX - fromCenterX);
+            
+            // Start point at edge of fromNode
+            const fromX = fromCenterX + Math.cos(angle) * (fromRect.width / 2);
+            const fromY = fromCenterY + Math.sin(angle) * (fromRect.height / 2);
+            
+            // End point at edge of toNode
+            const toX = toCenterX - Math.cos(angle) * (toRect.width / 2);
+            const toY = toCenterY - Math.sin(angle) * (toRect.height / 2);
             
             const distance = Math.sqrt(Math.pow(toX - fromX, 2) + Math.pow(toY - fromY, 2));
             const angle = Math.atan2(toY - fromY, toX - fromX);
@@ -2116,8 +2188,8 @@
             let y = e.clientY - containerRect.top - dragOffset.y;
             
             // Apply constraints to keep element within its container
-            const nodeWidth = 200; // Approximate node width
-            const nodeHeight = 150; // Approximate node height
+            const nodeWidth = 280; // Updated node width
+            const nodeHeight = 180; // Updated node height
             const padding = 20;
             
             const minX = padding;
