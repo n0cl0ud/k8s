@@ -601,6 +601,7 @@
                     <button class="control-button" onclick="setLayout('hierarchical')">📊 Hierarchical</button>
                     <button class="control-button" onclick="setLayout('circular')">⭕ Circular</button>
                     <button class="control-button" onclick="clearVisualization()">🗑️ Clear</button>
+                    <button class="control-button" onclick="loadExample()">📝 Load Example</button>
                 </div>
                 
                 <div id="visualizationContainer" class="architecture-container">
@@ -2505,15 +2506,6 @@ resource "azurerm_virtual_machine" "web" {
             parseAndAddTerraformFile('azure-cluster.tf', azureClusterYaml);
         }
 
-        // Add example button to controls when DOM is ready
-        document.addEventListener('DOMContentLoaded', function() {
-            const controls = document.querySelector('.controls');
-            const exampleButton = document.createElement('button');
-            exampleButton.className = 'control-button';
-            exampleButton.textContent = '📝 Load Example';
-            exampleButton.onclick = loadExample;
-            controls.appendChild(exampleButton);
-        });
     </script>
 </body>
 </html>
