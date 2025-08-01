@@ -1252,10 +1252,7 @@
                     description: 'Native Kubernetes resources',
                     icon: '☸️',
                     className: 'kubernetes',
-                    resources: resources.filter(r => 
-                        r.type === 'kubernetes' || 
-                        (!r.kind.startsWith('aws_') && !r.kind.startsWith('google_') && !r.kind.startsWith('azurerm_'))
-                    ),
+                    resources: [],
                     groups: {
                         workloads: { name: 'Workloads', icon: '🚀', resources: [] },
                         services: { name: 'Services', icon: '🌐', resources: [] },
@@ -1266,6 +1263,24 @@
                     }
                 }
             };
+            
+            // First, categorize resources by provider using same logic as layouts
+            resources.forEach(resource => {
+                if (!resource.kind) {
+                    sections.kubernetes.resources.push(resource);
+                    return;
+                }
+                
+                if (resource.kind.startsWith('aws_')) {
+                    sections.aws.resources.push(resource);
+                } else if (resource.kind.startsWith('google_')) {
+                    sections.gcp.resources.push(resource);
+                } else if (resource.kind.startsWith('azurerm_')) {
+                    sections.azure.resources.push(resource);
+                } else {
+                    sections.kubernetes.resources.push(resource);
+                }
+            });
             
             // Categorize resources within each section
             Object.values(sections).forEach(section => {
@@ -1479,16 +1494,33 @@
         }
         
         function applyMindMapLayout() {
-            // Group resources by provider first
+            // Group resources by provider first - with better logic
             const providerGroups = {
-                aws: resources.filter(r => r.kind && r.kind.startsWith('aws_')),
-                gcp: resources.filter(r => r.kind && r.kind.startsWith('google_')),
-                azure: resources.filter(r => r.kind && r.kind.startsWith('azurerm_')),
-                kubernetes: resources.filter(r => 
-                    r.type === 'kubernetes' || 
-                    (!r.kind.startsWith('aws_') && !r.kind.startsWith('google_') && !r.kind.startsWith('azurerm_'))
-                )
+                aws: [],
+                gcp: [],
+                azure: [],
+                kubernetes: []
             };
+            
+            // Assign each resource to the correct provider group
+            resources.forEach(resource => {
+                if (!resource.kind) {
+                    console.warn('Resource without kind:', resource);
+                    providerGroups.kubernetes.push(resource);
+                    return;
+                }
+                
+                if (resource.kind.startsWith('aws_')) {
+                    providerGroups.aws.push(resource);
+                } else if (resource.kind.startsWith('google_')) {
+                    providerGroups.gcp.push(resource);
+                } else if (resource.kind.startsWith('azurerm_')) {
+                    providerGroups.azure.push(resource);
+                } else {
+                    // Everything else goes to Kubernetes (native K8s resources)
+                    providerGroups.kubernetes.push(resource);
+                }
+            });
             
             // Define zone positions and sizes
             const zones = {
@@ -1532,16 +1564,30 @@
         }
         
         function applyFlowLayout() {
-            // Group by provider first
+            // Group by provider first - with clear logic
             const providerGroups = {
-                aws: resources.filter(r => r.kind && r.kind.startsWith('aws_')),
-                gcp: resources.filter(r => r.kind && r.kind.startsWith('google_')),
-                azure: resources.filter(r => r.kind && r.kind.startsWith('azurerm_')),
-                kubernetes: resources.filter(r => 
-                    r.type === 'kubernetes' || 
-                    (!r.kind.startsWith('aws_') && !r.kind.startsWith('google_') && !r.kind.startsWith('azurerm_'))
-                )
+                aws: [],
+                gcp: [],
+                azure: [],
+                kubernetes: []
             };
+            
+            resources.forEach(resource => {
+                if (!resource.kind) {
+                    providerGroups.kubernetes.push(resource);
+                    return;
+                }
+                
+                if (resource.kind.startsWith('aws_')) {
+                    providerGroups.aws.push(resource);
+                } else if (resource.kind.startsWith('google_')) {
+                    providerGroups.gcp.push(resource);
+                } else if (resource.kind.startsWith('azurerm_')) {
+                    providerGroups.azure.push(resource);
+                } else {
+                    providerGroups.kubernetes.push(resource);
+                }
+            });
             
             const zoneWidth = 400;
             const zoneHeight = 600;
@@ -1619,16 +1665,30 @@
         }
         
         function applyTreeLayout() {
-            // Group by provider
+            // Group by provider - with clear logic
             const providerGroups = {
-                aws: resources.filter(r => r.kind && r.kind.startsWith('aws_')),
-                gcp: resources.filter(r => r.kind && r.kind.startsWith('google_')),
-                azure: resources.filter(r => r.kind && r.kind.startsWith('azurerm_')),
-                kubernetes: resources.filter(r => 
-                    r.type === 'kubernetes' || 
-                    (!r.kind.startsWith('aws_') && !r.kind.startsWith('google_') && !r.kind.startsWith('azurerm_'))
-                )
+                aws: [],
+                gcp: [],
+                azure: [],
+                kubernetes: []
             };
+            
+            resources.forEach(resource => {
+                if (!resource.kind) {
+                    providerGroups.kubernetes.push(resource);
+                    return;
+                }
+                
+                if (resource.kind.startsWith('aws_')) {
+                    providerGroups.aws.push(resource);
+                } else if (resource.kind.startsWith('google_')) {
+                    providerGroups.gcp.push(resource);
+                } else if (resource.kind.startsWith('azurerm_')) {
+                    providerGroups.azure.push(resource);
+                } else {
+                    providerGroups.kubernetes.push(resource);
+                }
+            });
             
             const zoneWidth = 500;
             const zoneHeight = 800;
@@ -1733,14 +1793,28 @@
         function renderProviderZones(viewport) {
             // Group resources by provider to show only active zones
             const activeProviders = {
-                aws: resources.filter(r => r.kind && r.kind.startsWith('aws_')),
-                gcp: resources.filter(r => r.kind && r.kind.startsWith('google_')),
-                azure: resources.filter(r => r.kind && r.kind.startsWith('azurerm_')),
-                kubernetes: resources.filter(r => 
-                    r.type === 'kubernetes' || 
-                    (!r.kind.startsWith('aws_') && !r.kind.startsWith('google_') && !r.kind.startsWith('azurerm_'))
-                )
+                aws: [],
+                gcp: [],
+                azure: [],
+                kubernetes: []
             };
+            
+            resources.forEach(resource => {
+                if (!resource.kind) {
+                    activeProviders.kubernetes.push(resource);
+                    return;
+                }
+                
+                if (resource.kind.startsWith('aws_')) {
+                    activeProviders.aws.push(resource);
+                } else if (resource.kind.startsWith('google_')) {
+                    activeProviders.gcp.push(resource);
+                } else if (resource.kind.startsWith('azurerm_')) {
+                    activeProviders.azure.push(resource);
+                } else {
+                    activeProviders.kubernetes.push(resource);
+                }
+            });
             
             const providerNames = {
                 aws: 'Amazon Web Services',
@@ -2070,8 +2144,20 @@
             connections = [];
             loadedFiles.clear();
             expandedNodes.clear();
+            window.currentZones = null;
+            
+            // Clear UI elements
+            const viewport = document.getElementById('viewport');
+            const existingNodes = viewport.querySelectorAll('.mind-node, .provider-zone');
+            existingNodes.forEach(node => node.remove());
+            
+            // Reset to empty state
+            document.getElementById('emptyState').style.display = 'block';
+            document.getElementById('statsPanel').style.display = 'none';
+            
             updateFilesList();
-            updateVisualization();
+            updateResourcesSections();
+            updateStats();
         };
         
         window.removeFile = function(fileName) {
@@ -2160,6 +2246,9 @@
         
         // Load example
         window.loadExample = function() {
+            // Clear existing first
+            clearAll();
+            
             const exampleYaml = `apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -2304,7 +2393,165 @@ spec:
         requests:
           storage: 10Gi`;
             
+            // Add Terraform examples too
+            const terraformExamples = `# AWS Infrastructure
+resource "aws_instance" "web_server" {
+  ami           = "ami-0c02fb55956c7d316"
+  instance_type = "t3.medium"
+  
+  tags = {
+    Name = "WebServer"
+    Environment = "production"
+  }
+}
+
+resource "aws_eks_cluster" "main" {
+  name     = "production-cluster"
+  role_arn = aws_iam_role.cluster.arn
+  version  = "1.27"
+
+  vpc_config {
+    subnet_ids = [aws_subnet.private[0].id, aws_subnet.private[1].id]
+  }
+
+  tags = {
+    Environment = "production"
+  }
+}
+
+resource "aws_rds_instance" "postgres" {
+  identifier     = "production-db"
+  engine         = "postgres"
+  engine_version = "15.3"
+  instance_class = "db.t3.micro"
+  
+  allocated_storage     = 20
+  max_allocated_storage = 100
+  
+  db_name  = "appdb"
+  username = "postgres"
+  
+  tags = {
+    Name = "ProductionDB"
+  }
+}
+
+resource "aws_s3_bucket" "assets" {
+  bucket = "my-app-assets-bucket"
+  
+  tags = {
+    Environment = "production"
+  }
+}`;
+
+const gcpTerraform = `# GCP Infrastructure
+resource "google_compute_instance" "web_vm" {
+  name         = "web-server"
+  machine_type = "e2-medium"
+  zone         = "us-central1-a"
+
+  boot_disk {
+    initialize_params {
+      image = "debian-cloud/debian-11"
+    }
+  }
+
+  network_interface {
+    network = "default"
+  }
+
+  tags = ["web", "production"]
+}
+
+resource "google_container_cluster" "primary" {
+  name     = "gke-cluster"
+  location = "us-central1"
+  
+  initial_node_count = 1
+  node_version = "1.27.3-gke.100"
+  
+  node_config {
+    machine_type = "e2-medium"
+    disk_size_gb = 50
+    
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform",
+    ]
+  }
+}
+
+resource "google_sql_database_instance" "postgres" {
+  name             = "postgres-instance"
+  database_version = "POSTGRES_15"
+  region           = "us-central1"
+  
+  settings {
+    tier = "db-f1-micro"
+    
+    backup_configuration {
+      enabled = true
+    }
+  }
+}`;
+
+const azureTerraform = `# Azure Infrastructure
+resource "azurerm_virtual_machine" "web_vm" {
+  name                = "web-vm"
+  location            = "East US"
+  resource_group_name = azurerm_resource_group.main.name
+  vm_size             = "Standard_B2s"
+  
+  storage_os_disk {
+    name              = "web-vm-os-disk"
+    caching           = "ReadWrite"
+    create_option     = "FromImage"
+    managed_disk_type = "Standard_LRS"
+  }
+  
+  tags = {
+    Environment = "production"
+  }
+}
+
+resource "azurerm_kubernetes_cluster" "aks" {
+  name                = "aks-cluster"
+  location            = "East US"
+  resource_group_name = azurerm_resource_group.main.name
+  kubernetes_version  = "1.27.1"
+  
+  default_node_pool {
+    name       = "default"
+    node_count = 2
+    vm_size    = "Standard_D2_v2"
+  }
+  
+  identity {
+    type = "SystemAssigned"
+  }
+  
+  tags = {
+    Environment = "production"
+  }
+}
+
+resource "azurerm_sql_server" "postgres" {
+  name                         = "production-sqlserver"
+  resource_group_name          = azurerm_resource_group.main.name
+  location                     = "East US"
+  version                      = "12.0"
+  administrator_login          = "sqladmin"
+  administrator_login_password = "P@ssw0rd123!"
+  
+  tags = {
+    Environment = "production"
+  }
+}`;
+            
+            // Process all files
             processFile('example-microservice.yaml', exampleYaml);
+            processFile('aws-infrastructure.tf', terraformExamples);
+            processFile('gcp-resources.tf', gcpTerraform);
+            processFile('azure-cluster.tf', azureTerraform);
         };
     </script>
 </body>
