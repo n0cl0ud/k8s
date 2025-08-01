@@ -27,7 +27,8 @@
         
         /* Sidebar */
         .sidebar {
-            width: 420px;
+            width: 500px;
+            min-width: 500px;
             background: #161b22;
             border-right: 1px solid #30363d;
             display: flex;
@@ -434,6 +435,83 @@
             position: relative;
             overflow: auto;
             cursor: grab;
+        }
+        
+        /* Provider zones on canvas */
+        .provider-zone {
+            position: absolute;
+            border: 2px solid;
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(5px);
+            transition: all 0.3s ease;
+        }
+        
+        .provider-zone.aws {
+            background: rgba(255, 153, 0, 0.08);
+            border-color: rgba(255, 153, 0, 0.3);
+        }
+        
+        .provider-zone.gcp {
+            background: rgba(66, 133, 244, 0.08);
+            border-color: rgba(66, 133, 244, 0.3);
+        }
+        
+        .provider-zone.azure {
+            background: rgba(0, 120, 212, 0.08);
+            border-color: rgba(0, 120, 212, 0.3);
+        }
+        
+        .provider-zone.kubernetes {
+            background: rgba(50, 108, 229, 0.08);
+            border-color: rgba(50, 108, 229, 0.3);
+        }
+        
+        .zone-header {
+            position: absolute;
+            top: -15px;
+            left: 20px;
+            background: #0d1117;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid;
+        }
+        
+        .zone-header.aws {
+            color: #ff9900;
+            border-color: rgba(255, 153, 0, 0.5);
+            background: linear-gradient(135deg, #0d1117 0%, rgba(255, 153, 0, 0.1) 100%);
+        }
+        
+        .zone-header.gcp {
+            color: #4285f4;
+            border-color: rgba(66, 133, 244, 0.5);
+            background: linear-gradient(135deg, #0d1117 0%, rgba(66, 133, 244, 0.1) 100%);
+        }
+        
+        .zone-header.azure {
+            color: #0078d4;
+            border-color: rgba(0, 120, 212, 0.5);
+            background: linear-gradient(135deg, #0d1117 0%, rgba(0, 120, 212, 0.1) 100%);
+        }
+        
+        .zone-header.kubernetes {
+            color: #326ce5;
+            border-color: rgba(50, 108, 229, 0.5);
+            background: linear-gradient(135deg, #0d1117 0%, rgba(50, 108, 229, 0.1) 100%);
+        }
+        
+        .zone-stats {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75em;
+            margin-left: 8px;
         }
         
         #canvas.dragging {
@@ -1398,158 +1476,237 @@
         }
         
         function applyMindMapLayout() {
-            const center = { x: 800, y: 600 };
-            const layers = {
-                ingress: [],
-                service: [],
-                workload: [],
-                config: [],
-                storage: []
+            // Group resources by provider first
+            const providerGroups = {
+                aws: resources.filter(r => r.kind && r.kind.startsWith('aws_')),
+                gcp: resources.filter(r => r.kind && r.kind.startsWith('google_')),
+                azure: resources.filter(r => r.kind && r.kind.startsWith('azurerm_')),
+                kubernetes: resources.filter(r => r.type === 'kubernetes')
             };
             
-            // Categorize resources
-            resources.forEach(resource => {
-                if (resource.kind === 'Ingress') layers.ingress.push(resource);
-                else if (resource.kind === 'Service') layers.service.push(resource);
-                else if (['Deployment', 'StatefulSet', 'DaemonSet'].includes(resource.kind)) layers.workload.push(resource);
-                else if (['ConfigMap', 'Secret'].includes(resource.kind)) layers.config.push(resource);
-                else if (resource.kind === 'PersistentVolumeClaim') layers.storage.push(resource);
+            // Define zone positions and sizes
+            const zones = {
+                aws: { x: 100, y: 100, width: 600, height: 400, color: 'aws' },
+                gcp: { x: 800, y: 100, width: 600, height: 400, color: 'gcp' },
+                azure: { x: 100, y: 600, width: 600, height: 400, color: 'azure' },
+                kubernetes: { x: 800, y: 600, width: 600, height: 400, color: 'kubernetes' }
+            };
+            
+            // Position resources within their zones
+            Object.entries(providerGroups).forEach(([provider, providerResources]) => {
+                if (providerResources.length > 0) {
+                    const zone = zones[provider];
+                    const padding = 50;
+                    const nodeSpacing = 240;
+                    const rowHeight = 200;
+                    
+                    // Calculate grid layout within zone
+                    const nodesPerRow = Math.floor((zone.width - padding * 2) / nodeSpacing);
+                    const maxNodesPerRow = Math.max(2, nodesPerRow);
+                    
+                    providerResources.forEach((resource, index) => {
+                        const row = Math.floor(index / maxNodesPerRow);
+                        const col = index % maxNodesPerRow;
+                        
+                        // Center the row if it's not full
+                        const nodesInThisRow = Math.min(maxNodesPerRow, providerResources.length - (row * maxNodesPerRow));
+                        const rowStartX = zone.x + padding + (zone.width - padding * 2 - (nodesInThisRow * nodeSpacing)) / 2;
+                        
+                        resource.x = rowStartX + (col * nodeSpacing);
+                        resource.y = zone.y + padding + (row * rowHeight);
+                        
+                        // Store zone info for rendering
+                        resource.zone = provider;
+                    });
+                }
             });
             
-            // Position in concentric circles
-            let radius = 200;
-            const radiusIncrement = 150;
+            // Store zones for rendering
+            window.currentZones = zones;
+        }
+        
+        function applyFlowLayout() {
+            // Group by provider first
+            const providerGroups = {
+                aws: resources.filter(r => r.kind && r.kind.startsWith('aws_')),
+                gcp: resources.filter(r => r.kind && r.kind.startsWith('google_')),
+                azure: resources.filter(r => r.kind && r.kind.startsWith('azurerm_')),
+                kubernetes: resources.filter(r => r.type === 'kubernetes')
+            };
             
-            Object.entries(layers).forEach(([layerName, layerResources]) => {
-                if (layerResources.length > 0) {
-                    const angleStep = (2 * Math.PI) / layerResources.length;
+            const zoneWidth = 400;
+            const zoneHeight = 600;
+            let currentX = 100;
+            const startY = 100;
+            
+            // Create zones for active providers
+            const zones = {};
+            Object.entries(providerGroups).forEach(([provider, providerResources]) => {
+                if (providerResources.length > 0) {
+                    zones[provider] = {
+                        x: currentX,
+                        y: startY,
+                        width: zoneWidth,
+                        height: zoneHeight,
+                        color: provider
+                    };
+                    currentX += zoneWidth + 100;
+                }
+            });
+            
+            window.currentZones = zones;
+            
+            // Position resources within zones using flow logic
+            Object.entries(providerGroups).forEach(([provider, providerResources]) => {
+                if (providerResources.length > 0 && zones[provider]) {
+                    const zone = zones[provider];
+                    const padding = 50;
+                    const columnWidth = 300;
+                    const nodeHeight = 180;
                     
-                    layerResources.forEach((resource, index) => {
-                        const angle = index * angleStep - Math.PI / 2;
-                        resource.x = center.x + radius * Math.cos(angle);
-                        resource.y = center.y + radius * Math.sin(angle);
+                    // Build flow columns for this provider
+                    const columns = [];
+                    const processed = new Set();
+                    const roots = providerResources.filter(r => !connections.some(c => c.to === r.id));
+                    
+                    let currentColumn = [...roots];
+                    while (currentColumn.length > 0) {
+                        columns.push(currentColumn);
+                        currentColumn.forEach(r => processed.add(r.id));
                         
-                        // Position children in a smaller arc
-                        if (resource.children && resource.children.length > 0) {
-                            const childRadius = 80;
-                            const childAngleStep = Math.PI / Math.max(resource.children.length, 1);
-                            const startAngle = angle - (childAngleStep * (resource.children.length - 1)) / 2;
-                            
-                            resource.children.forEach((child, childIndex) => {
-                                const childAngle = startAngle + (childIndex * childAngleStep);
-                                child.x = resource.x + childRadius * Math.cos(childAngle);
-                                child.y = resource.y + childRadius * Math.sin(childAngle);
-                            });
-                        }
-                    });
+                        const nextColumn = [];
+                        currentColumn.forEach(resource => {
+                            connections
+                                .filter(c => c.from === resource.id && !processed.has(c.to) && providerResources.includes(resources.find(r => r.id === c.to)))
+                                .forEach(c => {
+                                    const target = resources.find(r => r.id === c.to);
+                                    if (target && !nextColumn.includes(target)) {
+                                        nextColumn.push(target);
+                                    }
+                                });
+                        });
+                        
+                        currentColumn = nextColumn;
+                    }
                     
-                    radius += radiusIncrement;
+                    // Add unprocessed from this provider
+                    const unprocessed = providerResources.filter(r => !processed.has(r.id));
+                    if (unprocessed.length > 0) {
+                        columns.push(unprocessed);
+                    }
+                    
+                    // Position columns within zone
+                    columns.forEach((column, colIndex) => {
+                        const x = zone.x + padding + (colIndex * columnWidth);
+                        
+                        column.forEach((resource, rowIndex) => {
+                            resource.x = x;
+                            resource.y = zone.y + padding + (rowIndex * nodeHeight);
+                            resource.zone = provider;
+                        });
+                    });
                 }
             });
         }
         
-        function applyFlowLayout() {
-            // Left to right flow
-            const startX = 100;
-            const startY = 100;
-            const columnWidth = 300;
-            const nodeHeight = 200;
-            
-            const columns = [];
-            const processed = new Set();
-            
-            // Find roots
-            const roots = resources.filter(r => !connections.some(c => c.to === r.id));
-            
-            let currentColumn = [...roots];
-            while (currentColumn.length > 0) {
-                columns.push(currentColumn);
-                currentColumn.forEach(r => processed.add(r.id));
-                
-                const nextColumn = [];
-                currentColumn.forEach(resource => {
-                    connections
-                        .filter(c => c.from === resource.id && !processed.has(c.to))
-                        .forEach(c => {
-                            const target = resources.find(r => r.id === c.to);
-                            if (target && !nextColumn.includes(target)) {
-                                nextColumn.push(target);
-                            }
-                        });
-                });
-                
-                currentColumn = nextColumn;
-            }
-            
-            // Add unprocessed
-            const unprocessed = resources.filter(r => !processed.has(r.id));
-            if (unprocessed.length > 0) {
-                columns.push(unprocessed);
-            }
-            
-            // Position columns
-            columns.forEach((column, colIndex) => {
-                const x = startX + (colIndex * columnWidth);
-                
-                column.forEach((resource, rowIndex) => {
-                    resource.x = x;
-                    resource.y = startY + (rowIndex * nodeHeight);
-                });
-            });
-        }
-        
         function applyTreeLayout() {
-            // Hierarchical tree
-            const rootX = 400;
+            // Group by provider
+            const providerGroups = {
+                aws: resources.filter(r => r.kind && r.kind.startsWith('aws_')),
+                gcp: resources.filter(r => r.kind && r.kind.startsWith('google_')),
+                azure: resources.filter(r => r.kind && r.kind.startsWith('azurerm_')),
+                kubernetes: resources.filter(r => r.type === 'kubernetes')
+            };
+            
+            const zoneWidth = 500;
+            const zoneHeight = 800;
+            let currentX = 100;
             const startY = 100;
-            const levelHeight = 250;
-            const nodeSpacing = 280;
             
-            const levels = [];
-            const processed = new Set();
+            // Create zones
+            const zones = {};
+            Object.entries(providerGroups).forEach(([provider, providerResources]) => {
+                if (providerResources.length > 0) {
+                    zones[provider] = {
+                        x: currentX,
+                        y: startY,
+                        width: zoneWidth,
+                        height: zoneHeight,
+                        color: provider
+                    };
+                    currentX += zoneWidth + 80;
+                }
+            });
             
-            // Build levels
-            const roots = resources.filter(r => !connections.some(c => c.to === r.id));
-            let currentLevel = [...roots];
+            window.currentZones = zones;
             
-            while (currentLevel.length > 0) {
-                levels.push(currentLevel);
-                currentLevel.forEach(r => processed.add(r.id));
-                
-                const nextLevel = [];
-                currentLevel.forEach(resource => {
-                    connections
-                        .filter(c => c.from === resource.id && !processed.has(c.to))
-                        .forEach(c => {
-                            const target = resources.find(r => r.id === c.to);
-                            if (target && !nextLevel.includes(target)) {
-                                nextLevel.push(target);
-                            }
+            // Build tree within each zone
+            Object.entries(providerGroups).forEach(([provider, providerResources]) => {
+                if (providerResources.length > 0 && zones[provider]) {
+                    const zone = zones[provider];
+                    const padding = 50;
+                    const levelHeight = 200;
+                    const nodeSpacing = 220;
+                    
+                    const levels = [];
+                    const processed = new Set();
+                    
+                    // Build levels for this provider
+                    const roots = providerResources.filter(r => !connections.some(c => c.to === r.id));
+                    let currentLevel = [...roots];
+                    
+                    while (currentLevel.length > 0) {
+                        levels.push(currentLevel);
+                        currentLevel.forEach(r => processed.add(r.id));
+                        
+                        const nextLevel = [];
+                        currentLevel.forEach(resource => {
+                            connections
+                                .filter(c => c.from === resource.id && !processed.has(c.to) && providerResources.includes(resources.find(r => r.id === c.to)))
+                                .forEach(c => {
+                                    const target = resources.find(r => r.id === c.to);
+                                    if (target && !nextLevel.includes(target)) {
+                                        nextLevel.push(target);
+                                    }
+                                });
                         });
-                });
-                
-                currentLevel = nextLevel;
-            }
-            
-            // Position levels
-            levels.forEach((level, levelIndex) => {
-                const y = startY + (levelIndex * levelHeight);
-                const totalWidth = level.length * nodeSpacing;
-                const startX = rootX - totalWidth / 2;
-                
-                level.forEach((resource, index) => {
-                    resource.x = startX + (index * nodeSpacing);
-                    resource.y = y;
-                });
+                        
+                        currentLevel = nextLevel;
+                    }
+                    
+                    // Add unprocessed
+                    const unprocessed = providerResources.filter(r => !processed.has(r.id));
+                    if (unprocessed.length > 0) {
+                        levels.push(unprocessed);
+                    }
+                    
+                    // Position levels within zone
+                    levels.forEach((level, levelIndex) => {
+                        const y = zone.y + padding + (levelIndex * levelHeight);
+                        const totalWidth = level.length * nodeSpacing;
+                        const startX = zone.x + zone.width / 2 - totalWidth / 2;
+                        
+                        level.forEach((resource, index) => {
+                            resource.x = startX + (index * nodeSpacing);
+                            resource.y = y;
+                            resource.zone = provider;
+                        });
+                    });
+                }
             });
         }
         
         function render() {
             const viewport = document.getElementById('viewport');
             
-            // Clear existing nodes
-            const existingNodes = viewport.querySelectorAll('.mind-node');
+            // Clear existing nodes and zones
+            const existingNodes = viewport.querySelectorAll('.mind-node, .provider-zone');
             existingNodes.forEach(node => node.remove());
+            
+            // Render provider zones first (for all modes)
+            if (window.currentZones) {
+                renderProviderZones(viewport);
+            }
             
             // Render nodes
             resources.forEach(resource => {
@@ -1559,6 +1716,66 @@
             
             // Render connections
             renderConnections();
+        }
+        
+        function renderProviderZones(viewport) {
+            // Group resources by provider to show only active zones
+            const activeProviders = {
+                aws: resources.filter(r => r.kind && r.kind.startsWith('aws_')),
+                gcp: resources.filter(r => r.kind && r.kind.startsWith('google_')),
+                azure: resources.filter(r => r.kind && r.kind.startsWith('azurerm_')),
+                kubernetes: resources.filter(r => r.type === 'kubernetes')
+            };
+            
+            const providerNames = {
+                aws: 'Amazon Web Services',
+                gcp: 'Google Cloud Platform', 
+                azure: 'Microsoft Azure',
+                kubernetes: 'Kubernetes'
+            };
+            
+            const providerIcons = {
+                aws: '☁️',
+                gcp: '🔵',
+                azure: '🔷',
+                kubernetes: '☸️'
+            };
+            
+            Object.entries(window.currentZones).forEach(([provider, zone]) => {
+                const providerResources = activeProviders[provider];
+                if (providerResources && providerResources.length > 0) {
+                    const zoneDiv = document.createElement('div');
+                    zoneDiv.className = `provider-zone ${zone.color}`;
+                    zoneDiv.style.left = `${zone.x}px`;
+                    zoneDiv.style.top = `${zone.y}px`;
+                    zoneDiv.style.width = `${zone.width}px`;
+                    zoneDiv.style.height = `${zone.height}px`;
+                    
+                    const header = document.createElement('div');
+                    header.className = `zone-header ${zone.color}`;
+                    header.style.cursor = 'pointer';
+                    header.onclick = () => {
+                        // Sync with sidebar section
+                        const sectionHeader = document.querySelector(`[onclick="toggleSection('${provider}')"]`);
+                        if (sectionHeader) {
+                            sectionHeader.click();
+                        }
+                        // Highlight zone temporarily  
+                        zoneDiv.style.transform = 'scale(1.02)';
+                        setTimeout(() => {
+                            zoneDiv.style.transform = 'scale(1)';
+                        }, 200);
+                    };
+                    header.innerHTML = `
+                        <span>${providerIcons[provider]}</span>
+                        <span>${providerNames[provider]}</span>
+                        <span class="zone-stats">${providerResources.length} resources</span>
+                    `;
+                    
+                    zoneDiv.appendChild(header);
+                    viewport.appendChild(zoneDiv);
+                }
+            });
         }
         
         function createMindNode(resource) {
