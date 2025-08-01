@@ -2505,13 +2505,15 @@ resource "azurerm_virtual_machine" "web" {
             parseAndAddTerraformFile('azure-cluster.tf', azureClusterYaml);
         }
 
-        // Add example button to controls
-        const controls = document.querySelector('.controls');
-        const exampleButton = document.createElement('button');
-        exampleButton.className = 'control-button';
-        exampleButton.textContent = '📝 Load Example';
-        exampleButton.onclick = loadExample;
-        controls.appendChild(exampleButton);
+        // Add example button to controls when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            const controls = document.querySelector('.controls');
+            const exampleButton = document.createElement('button');
+            exampleButton.className = 'control-button';
+            exampleButton.textContent = '📝 Load Example';
+            exampleButton.onclick = loadExample;
+            controls.appendChild(exampleButton);
+        });
     </script>
 </body>
 </html>
