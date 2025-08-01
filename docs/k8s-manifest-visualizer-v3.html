@@ -1252,7 +1252,10 @@
                     description: 'Native Kubernetes resources',
                     icon: '☸️',
                     className: 'kubernetes',
-                    resources: resources.filter(r => r.type === 'kubernetes'),
+                    resources: resources.filter(r => 
+                        r.type === 'kubernetes' || 
+                        (!r.kind.startsWith('aws_') && !r.kind.startsWith('google_') && !r.kind.startsWith('azurerm_'))
+                    ),
                     groups: {
                         workloads: { name: 'Workloads', icon: '🚀', resources: [] },
                         services: { name: 'Services', icon: '🌐', resources: [] },
@@ -1481,7 +1484,10 @@
                 aws: resources.filter(r => r.kind && r.kind.startsWith('aws_')),
                 gcp: resources.filter(r => r.kind && r.kind.startsWith('google_')),
                 azure: resources.filter(r => r.kind && r.kind.startsWith('azurerm_')),
-                kubernetes: resources.filter(r => r.type === 'kubernetes')
+                kubernetes: resources.filter(r => 
+                    r.type === 'kubernetes' || 
+                    (!r.kind.startsWith('aws_') && !r.kind.startsWith('google_') && !r.kind.startsWith('azurerm_'))
+                )
             };
             
             // Define zone positions and sizes
@@ -1531,7 +1537,10 @@
                 aws: resources.filter(r => r.kind && r.kind.startsWith('aws_')),
                 gcp: resources.filter(r => r.kind && r.kind.startsWith('google_')),
                 azure: resources.filter(r => r.kind && r.kind.startsWith('azurerm_')),
-                kubernetes: resources.filter(r => r.type === 'kubernetes')
+                kubernetes: resources.filter(r => 
+                    r.type === 'kubernetes' || 
+                    (!r.kind.startsWith('aws_') && !r.kind.startsWith('google_') && !r.kind.startsWith('azurerm_'))
+                )
             };
             
             const zoneWidth = 400;
@@ -1615,7 +1624,10 @@
                 aws: resources.filter(r => r.kind && r.kind.startsWith('aws_')),
                 gcp: resources.filter(r => r.kind && r.kind.startsWith('google_')),
                 azure: resources.filter(r => r.kind && r.kind.startsWith('azurerm_')),
-                kubernetes: resources.filter(r => r.type === 'kubernetes')
+                kubernetes: resources.filter(r => 
+                    r.type === 'kubernetes' || 
+                    (!r.kind.startsWith('aws_') && !r.kind.startsWith('google_') && !r.kind.startsWith('azurerm_'))
+                )
             };
             
             const zoneWidth = 500;
@@ -1724,7 +1736,10 @@
                 aws: resources.filter(r => r.kind && r.kind.startsWith('aws_')),
                 gcp: resources.filter(r => r.kind && r.kind.startsWith('google_')),
                 azure: resources.filter(r => r.kind && r.kind.startsWith('azurerm_')),
-                kubernetes: resources.filter(r => r.type === 'kubernetes')
+                kubernetes: resources.filter(r => 
+                    r.type === 'kubernetes' || 
+                    (!r.kind.startsWith('aws_') && !r.kind.startsWith('google_') && !r.kind.startsWith('azurerm_'))
+                )
             };
             
             const providerNames = {
